@@ -58,13 +58,14 @@ function positionSubgraphs(){
 
 function drawEdges(){
   edgesEl.querySelectorAll('.edge').forEach(e=>e.remove());
-  edges.forEach(edge=>{
+  edges.forEach((edge,index)=>{
     const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
     const a=document.querySelector(`[data-id="${from.id}"]`),b=document.querySelector(`[data-id="${to.id}"]`); if(!a||!b)return;
     let x1=from.x+a.offsetWidth/2,y1=from.y+a.offsetHeight/2,x2=to.x+b.offsetWidth/2,y2=to.y+b.offsetHeight/2;
     const vertical=direction==='TB'||direction==='TD'||direction==='BT',bend=Math.max(40,(vertical?Math.abs(y2-y1):Math.abs(x2-x1))*.42);
     if(vertical){const down=y2>=y1;y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{const right=x2>=x1;x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
-    const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class','edge');
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index?'selected':''}`); path.dataset.edge=index;
+    path.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;updateProperties();drawEdges();});
     path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
     if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; edgesEl.appendChild(text); }
   });
@@ -77,7 +78,7 @@ function selectNode(e){
     if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)) edges.push({from:source,to:id,label:''});
     source=null; connecting=false; document.querySelector('#connectBtn').classList.remove('active'); render(); return;
   }
-  selected=id;
+  selected=id; selectedEdge=null;
   nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===id));
   updateProperties();
 }
@@ -85,7 +86,7 @@ function selectNode(e){
 function startDrag(e){
   if(e.button!==0||spaceDown||e.currentTarget.querySelector('[contenteditable="true"]'))return;
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
-  selected=id; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); updateProperties();
+  selected=id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); updateProperties();
   const move=ev=>{
     let x=Math.max(12,Math.round(ox+(ev.clientX-startX)/zoom));
     let y=Math.max(12,Math.round(oy+(ev.clientY-startY)/zoom));

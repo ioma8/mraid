@@ -13,7 +13,7 @@ let nodes = [
   { id:'D', label:'Finish', x:650, y:245, shape:'pill' }
 ];
 let edges = [{from:'A',to:'B',label:''},{from:'B',to:'C',label:''},{from:'B',to:'D',label:''}];
-let selected = null, connecting = false, source = null, zoom = 1, panX = 0, panY = 0, spaceDown = false, direction = 'LR', subgraphs = [];
+let selected = null, selectedEdge = null, connecting = false, source = null, zoom = 1, panX = 0, panY = 0, spaceDown = false, direction = 'LR', subgraphs = [];
 
 function nodeById(id){ return nodes.find(n=>n.id===id); }
 function esc(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
