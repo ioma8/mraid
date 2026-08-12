@@ -2,8 +2,26 @@ function render(syncCode=true){
   nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.shape==='diamond'?92:n.width||132}px"><span>${esc(n.label)}</span></div>`).join('');
   subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
   emptyState.style.display = nodes.length ? 'none' : 'flex';
-  nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); });
+  nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); });
   requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid();
+}
+
+function startInlineEdit(event){
+  event.preventDefault(); event.stopPropagation();
+  const node=nodeById(event.currentTarget.dataset.id),field=event.currentTarget.querySelector('span');
+  selected=node.id; field.contentEditable='true'; field.classList.add('inline-editing'); field.focus();
+  const selection=window.getSelection(); selection?.selectAllChildren(field);
+  const finish=commit=>{
+    if(!field.isContentEditable)return;
+    const value=field.textContent.trim(); field.contentEditable='false'; field.classList.remove('inline-editing');
+    if(commit&&value)node.label=value; else field.textContent=node.label;
+    render();
+  };
+  field.onblur=()=>finish(true);
+  field.onkeydown=keyEvent=>{
+    if(keyEvent.key==='Escape'){keyEvent.preventDefault();finish(false);}
+    if(keyEvent.key==='Enter'){keyEvent.preventDefault();finish(true);}
+  };
 }
 
 function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
@@ -59,11 +77,13 @@ function selectNode(e){
     if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)) edges.push({from:source,to:id,label:''});
     source=null; connecting=false; document.querySelector('#connectBtn').classList.remove('active'); render(); return;
   }
-  selected=id; render();
+  selected=id;
+  nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===id));
+  updateProperties();
 }
 
 function startDrag(e){
-  if(e.button!==0||spaceDown)return;
+  if(e.button!==0||spaceDown||e.currentTarget.querySelector('[contenteditable="true"]'))return;
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
   selected=id; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); updateProperties();
   const move=ev=>{
