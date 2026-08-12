@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mermaid Canvas — Visual Mermaid editor</title>
+  <style>
+    :root{--ink:#20242d;--muted:#717887;--purple:#7059e8;--soft:#f5f3ff;--line:#e7e8ec}
+    *{box-sizing:border-box}body{margin:0;color:var(--ink);font:15px Arial,sans-serif;background:#fcfcfd}
+    nav{height:64px;display:flex;align-items:center;justify-content:space-between;max-width:1080px;margin:auto;padding:0 24px}
+    .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.3px}.mark{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--purple);color:#fff}
+    nav a,.button{text-decoration:none;color:var(--ink);font-weight:600}.button{display:inline-flex;align-items:center;gap:8px;background:var(--purple);color:#fff;padding:12px 17px;border-radius:8px;box-shadow:0 5px 18px #7059e833}
+    .hero{max-width:1080px;margin:auto;padding:92px 24px 80px;display:grid;grid-template-columns:1.1fr .9fr;gap:70px;align-items:center}.eyebrow{color:var(--purple);font-size:11px;font-weight:700;letter-spacing:1.7px;text-transform:uppercase}.hero h1{font-size:clamp(42px,6vw,72px);line-height:.98;letter-spacing:-4px;margin:18px 0}.hero p{max-width:530px;color:var(--muted);font-size:18px;line-height:1.55;margin:0 0 28px}.hero-art{position:relative;height:330px;border:1px solid var(--line);border-radius:18px;background-color:#fff;background-image:radial-gradient(#dedfe7 1px,transparent 1px);background-size:20px 20px;box-shadow:0 20px 55px #2423380d}.art-node{position:absolute;padding:15px 22px;background:#fff;border:1px solid #c9cbd4;border-radius:11px;box-shadow:0 5px 16px #25243212;font-weight:600}.art-node.a{left:35px;top:65px}.art-node.b{left:185px;top:135px;border-color:#a499ec}.art-node.c{right:30px;top:65px}.art-node.d{right:50px;bottom:45px;border-radius:24px}.line{position:absolute;height:1px;background:#a5a9b4;transform-origin:left center}.line.one{width:160px;left:110px;top:108px;transform:rotate(22deg)}.line.two{width:145px;left:290px;top:153px;transform:rotate(-23deg)}.line.three{width:115px;left:290px;top:181px;transform:rotate(28deg)}.features{background:var(--soft);padding:58px 24px}.feature-grid{max-width:1080px;margin:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.feature{background:#fff;border:1px solid #eae8f7;border-radius:12px;padding:22px}.feature span{font-size:22px;color:var(--purple)}.feature h2{font-size:16px;margin:15px 0 7px}.feature p{color:var(--muted);line-height:1.5;font-size:13px;margin:0}.foot{max-width:1080px;margin:auto;padding:24px;color:#9a9faa;font-size:12px}
+    @media(max-width:760px){.hero{grid-template-columns:1fr;padding-top:55px;gap:40px}.hero h1{letter-spacing:-2px}.feature-grid{grid-template-columns:1fr}.hero-art{height:280px}.art-node.b{left:120px}.line.one{width:100px}.line.two{width:90px;left:230px}.line.three{left:230px;width:70px}}
+  </style>
+</head>
+<body>
+  <nav><div class="brand"><span class="mark">✦</span> mermaid canvas</div><a class="button" href="editor.html">Open editor <span>↗</span></a></nav>
+  <main>
+    <section class="hero"><div><div class="eyebrow">Visual Mermaid diagrams</div><h1>Think in flows.<br>Build visually.</h1><p>A tiny, focused editor for creating and editing Mermaid flowcharts without wrestling with syntax. Drag nodes, connect ideas, and keep the code in sync.</p><a class="button" href="editor.html">Try it in your browser <span>→</span></a></div><div class="hero-art" aria-label="Example flowchart"><div class="art-node a">Start here</div><div class="art-node b">Make a decision</div><div class="art-node c">Keep going</div><div class="art-node d">Finish</div><i class="line one"></i><i class="line two"></i><i class="line three"></i></div></section>
+    <section class="features"><div class="feature-grid"><article class="feature"><span>✦</span><h2>Visual first</h2><p>Add, move, edit, and connect nodes directly on the canvas.</p></article><article class="feature"><span>&lt;/&gt;</span><h2>Code stays live</h2><p>Edit Mermaid source and see the diagram update in the same moment.</p></article><article class="feature"><span>⌘</span><h2>Small and native</h2><p>Run it in the browser or as a lightweight macOS app powered by WebKit.</p></article></div></section>
+  </main>
+  <footer class="foot">Mermaid Canvas · simple diagrams, fewer distractions.</footer>
+</body>
+</html>
