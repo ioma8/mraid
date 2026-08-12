@@ -1,5 +1,5 @@
 function render(syncCode=true){
-  nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px"><span>${esc(n.label)}</span></div>`).join('');
+  nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.shape==='diamond'?92:n.width||132}px"><span>${esc(n.label)}</span></div>`).join('');
   subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); });
@@ -21,8 +21,9 @@ function drawEdges(){
   edges.forEach(edge=>{
     const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
     const a=document.querySelector(`[data-id="${from.id}"]`),b=document.querySelector(`[data-id="${to.id}"]`); if(!a||!b)return;
-    const x1=from.x+a.offsetWidth/2,y1=from.y+a.offsetHeight/2,x2=to.x+b.offsetWidth/2,y2=to.y+b.offsetHeight/2;
+    let x1=from.x+a.offsetWidth/2,y1=from.y+a.offsetHeight/2,x2=to.x+b.offsetWidth/2,y2=to.y+b.offsetHeight/2;
     const vertical=direction==='TB'||direction==='TD'||direction==='BT',bend=Math.max(40,(vertical?Math.abs(y2-y1):Math.abs(x2-x1))*.42);
+    if(vertical){const down=y2>=y1;y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{const right=x2>=x1;x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
     const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class','edge');
     path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
     if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; edgesEl.appendChild(text); }

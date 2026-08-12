@@ -44,14 +44,43 @@ function layoutDiagram(diagram){
   const visit=(id,level,path=new Set())=>{ranks.set(id,Math.max(ranks.get(id)||0,level));if(path.has(id))return;const next=new Set(path);next.add(id);(outgoing.get(id)||[]).forEach(to=>visit(to,level+1,next));};
   diagram.nodes.filter(n=>!incoming.get(n.id)).forEach(n=>visit(n.id,0));
   diagram.nodes.forEach(n=>{if(!incoming.get(n.id))return;if(!ranks.get(n.id))visit(n.id,0);});
-  const columns=new Map(); diagram.nodes.forEach(n=>{const rank=ranks.get(n.id)||0;if(!columns.has(rank))columns.set(rank,[]);columns.get(rank).push(n);});
+  const layers=new Map(); diagram.nodes.forEach(n=>{const rank=ranks.get(n.id)||0;if(!layers.has(rank))layers.set(rank,[]);layers.get(rank).push(n);});
+  const position=new Map();
+  const reorder=(rank,near,forward)=>{
+    const layer=layers.get(rank)||[], reference=layers.get(near)||[]; reference.forEach((node,index)=>position.set(node.id,index));
+    layer.forEach((node,index)=>position.set(node.id,index));
+    layer.sort((a,b)=>{
+      const average=node=>{
+        const neighbors=diagram.edges.filter(edge=>forward?edge.to===node.id&&ranks.get(edge.from)===near:edge.from===node.id&&ranks.get(edge.to)===near).map(edge=>position.get(forward?edge.from:edge.to)).filter(Number.isFinite);
+        return neighbors.length?neighbors.reduce((sum,value)=>sum+value,0)/neighbors.length:position.get(node.id);
+      };
+      return average(a)-average(b);
+    });
+  };
+  const maxRank=Math.max(...layers.keys(),0);
+  for(let pass=0;pass<4;pass++){for(let rank=1;rank<=maxRank;rank++)reorder(rank,rank-1,true);for(let rank=maxRank-1;rank>=0;rank--)reorder(rank,rank+1,false);}
   const vertical=diagram.direction==='TB'||diagram.direction==='TD'||diagram.direction==='BT';
-  [...columns.entries()].forEach(([rank,items])=>items.forEach((node,index)=>{
-    const major=90+rank*220, minor=90+index*170;
-    node.x=vertical?minor:major; node.y=vertical?major:minor;
-  }));
+  diagram.nodes.forEach(n=>{n.width=Math.min(300,Math.max(132,n.label.length*7+36));n.height=Math.max(48,Math.ceil((n.label.length*7+36)/300)*18+24);});
+  const crossSize=n=>vertical?n.width:n.height, majorSize=n=>vertical?n.height:n.width;
+  const rankSizes=[...layers.keys()].sort((a,b)=>a-b).map(rank=>{const items=layers.get(rank);return {rank,items,major:Math.max(...items.map(majorSize)),cross:items.reduce((sum,n)=>sum+crossSize(n),0)+(items.length-1)*60};});
+  const maxCross=Math.max(...rankSizes.map(size=>size.cross),0);
+  rankSizes.forEach(size=>{let crossOffset=(maxCross-size.cross)/2+30;size.items.forEach(node=>{node._cross=crossOffset;crossOffset+=crossSize(node)+60;});});
+  const align=(rank,near,forward)=>{
+    const layer=layers.get(rank)||[], reference=layers.get(near)||[], index=new Map(reference.map((node,i)=>[node.id,i]));
+    let cursor=30; const desiredCenters=[];
+    layer.forEach(node=>{
+      const neighbors=diagram.edges.filter(edge=>forward?edge.to===node.id&&ranks.get(edge.from)===near:edge.from===node.id&&ranks.get(edge.to)===near).map(edge=>forward?edge.from:edge.to).map(id=>reference[index.get(id)]).filter(Boolean);
+      const desired=neighbors.length?neighbors.reduce((sum,item)=>sum+item._cross+crossSize(item)/2,0)/neighbors.length:node._cross+crossSize(node)/2;
+      desiredCenters.push(desired);
+      node._cross=Math.max(cursor,desired-crossSize(node)/2); cursor=node._cross+crossSize(node)+60;
+    });
+    if(layer.length){const actual=layer.reduce((sum,node)=>sum+node._cross+crossSize(node)/2,0)/layer.length;const desired=desiredCenters.reduce((sum,value)=>sum+value,0)/layer.length;const delta=desired-actual;layer.forEach(node=>node._cross+=delta);const min=Math.min(...layer.map(node=>node._cross));if(min<30)layer.forEach(node=>node._cross+=30-min);}
+  };
+  for(let pass=0;pass<4;pass++){for(let rank=1;rank<=maxRank;rank++)align(rank,rank-1,true);for(let rank=maxRank-1;rank>=0;rank--)align(rank,rank+1,false);}
+  let majorOffset=70;rankSizes.forEach(size=>{size.items.forEach(node=>{if(vertical){node.x=node._cross;node.y=majorOffset;}else{node.x=majorOffset;node.y=node._cross;}});majorOffset+=size.major+80;});
   if(diagram.direction==='BT') diagram.nodes.forEach(n=>n.y=-n.y);
   if(diagram.direction==='RL') diagram.nodes.forEach(n=>n.x=-n.x);
+  const minX=Math.min(...diagram.nodes.map(n=>n.x),0),minY=Math.min(...diagram.nodes.map(n=>n.y),0);diagram.nodes.forEach(n=>{n.x-=minX-30;n.y-=minY-30;});
   return diagram;
 }
 
