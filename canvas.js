@@ -6,6 +6,28 @@ function render(syncCode=true){
   requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid();
 }
 
+function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
+function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
+
+canvasWrap.addEventListener('pointerdown',event=>{
+  if(!spaceDown&&event.button!==1)return;
+  const startX=event.clientX,startY=event.clientY,originX=panX,originY=panY;
+  canvasWrap.setPointerCapture(event.pointerId); canvasWrap.classList.add('panning');
+  const move=moveEvent=>{panX=originX+moveEvent.clientX-startX;panY=originY+moveEvent.clientY-startY;applyViewport();};
+  const up=()=>{canvasWrap.classList.remove('panning');canvasWrap.removeEventListener('pointermove',move);canvasWrap.removeEventListener('pointerup',up);};
+  canvasWrap.addEventListener('pointermove',move);canvasWrap.addEventListener('pointerup',up);
+});
+canvasWrap.addEventListener('wheel',event=>{
+  const altPressed=event.altKey||event.getModifierState?.('Alt');
+  if(!altPressed)return;
+  event.preventDefault();
+  const rect=canvasWrap.getBoundingClientRect();
+  const viewportX=event.clientX-rect.left+canvasWrap.scrollLeft,viewportY=event.clientY-rect.top+canvasWrap.scrollTop;
+  const pointX=(viewportX-panX)/zoom,pointY=(viewportY-panY)/zoom;
+  const next=Math.min(2,Math.max(.5,zoom*(event.deltaY<0?1.1:.9)));
+  panX=viewportX-pointX*next;panY=viewportY-pointY*next;zoom=next;applyViewport();
+},{passive:false});
+
 function positionSubgraphs(){
   subgraphs.forEach((group,index)=>{
     const members=group.members.map(nodeById).filter(Boolean); if(!members.length)return;
@@ -41,7 +63,7 @@ function selectNode(e){
 }
 
 function startDrag(e){
-  if(e.button!==0)return;
+  if(e.button!==0||spaceDown)return;
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
   selected=id; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); updateProperties();
   const move=ev=>{

@@ -3,6 +3,7 @@ const nodesEl = document.querySelector('#nodes');
 const subgraphsEl = document.querySelector('#subgraphs');
 const edgesEl = document.querySelector('#edges');
 const codeEditor = document.querySelector('#codeEditor');
+const canvasWrap = document.querySelector('#canvasWrap');
 const emptyState = document.querySelector('#emptyState');
 
 let nodes = [
@@ -12,7 +13,7 @@ let nodes = [
   { id:'D', label:'Finish', x:650, y:245, shape:'pill' }
 ];
 let edges = [{from:'A',to:'B',label:''},{from:'B',to:'C',label:''},{from:'B',to:'D',label:''}];
-let selected = null, connecting = false, source = null, zoom = 1, direction = 'LR', subgraphs = [];
+let selected = null, connecting = false, source = null, zoom = 1, panX = 0, panY = 0, spaceDown = false, direction = 'LR', subgraphs = [];
 
 function nodeById(id){ return nodes.find(n=>n.id===id); }
 function esc(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }

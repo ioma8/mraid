@@ -14,5 +14,5 @@ document.querySelector('#copyBtn').onclick=()=>{nativeMessage({type:'copy',text:
 document.querySelector('#downloadBtn').onclick=()=>{nativeMessage({type:'save',name:'diagram.mmd',text:codeEditor.value});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([codeEditor.value],{type:'text/plain'}));a.download='diagram.mmd';a.click();};
 codeEditor.oninput=e=>applyMermaid(e.target.value);
 document.querySelector('#zoomIn').onclick=()=>setZoom(zoom+.1); document.querySelector('#zoomOut').onclick=()=>setZoom(zoom-.1);
-function setZoom(value){zoom=Math.min(1.5,Math.max(.7,value));canvas.style.transform=`scale(${zoom})`;document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%';}
-document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;if(e.key.toLowerCase()==='n')document.querySelector('#addNodeBtn').click();if(e.key.toLowerCase()==='c')document.querySelector('#connectBtn').click();if(e.key==='Delete'&&!document.querySelector('#deleteBtn').disabled)document.querySelector('#deleteBtn').click();});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;if(e.code==='Space'){spaceDown=true;e.preventDefault();}if(e.key.toLowerCase()==='n')document.querySelector('#addNodeBtn').click();if(e.key.toLowerCase()==='c')document.querySelector('#connectBtn').click();if(e.key==='Delete'&&!document.querySelector('#deleteBtn').disabled)document.querySelector('#deleteBtn').click();});
+document.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false;});
