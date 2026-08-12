@@ -16,6 +16,10 @@ asset() {
 asset embeddedHTML "$ROOT/index.html"
 asset embeddedCSS "$ROOT/style.css"
 
+mkdir -p "$ROOT/docs"
+cp "$ROOT/index.html" "$ROOT/docs/editor.html"
+cp "$ROOT/style.css" "$ROOT/state.js" "$ROOT/mermaid.js" "$ROOT/canvas.js" "$ROOT/ui.js" "$ROOT/main.js" "$ROOT/docs/"
+
 {
   printf 'let embeddedJS = #"""\n'
   for file in state.js mermaid.js canvas.js ui.js main.js; do cat "$ROOT/$file"; printf '\n'; done
