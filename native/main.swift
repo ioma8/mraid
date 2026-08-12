@@ -5,7 +5,17 @@ import WebKit
 final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     private var window: NSWindow!
 
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Quit Mermaid Canvas", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let appMenuItem = NSMenuItem()
+        appMenuItem.submenu = appMenu
+        let mainMenu = NSMenu()
+        mainMenu.addItem(appMenuItem)
+        NSApp.mainMenu = mainMenu
+
         let configuration = WKWebViewConfiguration()
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         configuration.userContentController.add(self, name: "native")
