@@ -1,0 +1,17 @@
+const fs = require('fs');
+const assert = require('assert');
+const {parseDiagram, layoutDiagram} = require('../mermaid.js');
+const source = fs.readFileSync(__dirname + '/complex-diagram.mmd', 'utf8');
+const diagram = layoutDiagram(parseDiagram(source));
+
+assert.equal(diagram.direction, 'TD');
+assert.equal(diagram.nodes.length, 27);
+assert.equal(diagram.edges.length, 27);
+assert.equal(diagram.subgraphs.length, 2);
+assert.equal(diagram.nodes.find(node => node.id === 'A').label, 'main.rs: main()');
+assert.equal(diagram.nodes.find(node => node.id === 'D').label, 'Add Features (VsCode, Find, RipGrep, Favourites, Delete, Open, MultiSelect)');
+assert.equal(diagram.edges.find(edge => edge.label === 'Key Event').from, 'H');
+assert.equal(diagram.edges.find(edge => edge.label === 'Message Received').to, 'M');
+assert(diagram.subgraphs.every(group => group.members.length > 0));
+assert(diagram.nodes.every(node => Number.isFinite(node.x) && Number.isFinite(node.y)));
+console.log('complex Mermaid diagram parses and lays out correctly');
