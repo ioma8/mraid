@@ -5,6 +5,7 @@ const edgesEl = document.querySelector('#edges');
 const codeEditor = document.querySelector('#codeEditor');
 const canvasWrap = document.querySelector('#canvasWrap');
 const emptyState = document.querySelector('#emptyState');
+const nodeMenu = document.querySelector('#nodeMenu');
 
 let nodes = [
   { id:'A', label:'Start here', x:150, y:165, shape:'round' },
