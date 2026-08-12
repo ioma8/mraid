@@ -32,6 +32,14 @@ function startInlineEdit(event){
 function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
 function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
 
+splitter.addEventListener('pointerdown',event=>{
+  event.preventDefault(); splitter.setPointerCapture(event.pointerId); splitter.classList.add('dragging');
+  const workspace=splitter.parentElement;
+  const move=moveEvent=>{const rect=workspace.getBoundingClientRect(),height=Math.min(rect.height-180,Math.max(105,rect.bottom-moveEvent.clientY));codePanel.style.flexBasis=`${height}px`;};
+  const up=()=>{splitter.classList.remove('dragging');splitter.removeEventListener('pointermove',move);splitter.removeEventListener('pointerup',up);};
+  splitter.addEventListener('pointermove',move);splitter.addEventListener('pointerup',up);
+});
+
 canvasWrap.addEventListener('pointerdown',event=>{
   if(!spaceDown&&event.button!==1)return;
   const startX=event.clientX,startY=event.clientY,originX=panX,originY=panY;

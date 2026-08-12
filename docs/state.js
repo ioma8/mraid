@@ -6,6 +6,8 @@ const codeEditor = document.querySelector('#codeEditor');
 const canvasWrap = document.querySelector('#canvasWrap');
 const emptyState = document.querySelector('#emptyState');
 const nodeMenu = document.querySelector('#nodeMenu');
+const splitter = document.querySelector('#splitter');
+const codePanel = document.querySelector('.code-panel');
 
 let nodes = [
   { id:'A', label:'Start here', x:150, y:165, shape:'round' },
