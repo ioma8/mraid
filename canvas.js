@@ -7,7 +7,7 @@ function render(syncCode=true){
 }
 
 function openNodeMenu(event){
-  event.preventDefault(); event.stopPropagation(); selected=event.currentTarget.dataset.id; selectedEdge=null; updateProperties();
+  event.preventDefault(); event.stopPropagation(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; selectedEdge=null; updateProperties();
   nodeMenu.style.left=`${event.clientX}px`; nodeMenu.style.top=`${event.clientY}px`; nodeMenu.classList.add('open');
 }
 
