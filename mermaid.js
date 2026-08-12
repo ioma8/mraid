@@ -2,7 +2,6 @@ function unquote(value){
   value=value.trim();
   return value.length>1&&((value[0]==='"'&&value.at(-1)==='"')||(value[0]==="'"&&value.at(-1)==="'"))?value.slice(1,-1):value;
 }
-
 function shapeFromToken(token){
   if(token.startsWith('([')) return ['pill',unquote(token.slice(2,-2))];
   if(token.startsWith('{{')) return ['diamond',unquote(token.slice(2,-2))];
@@ -10,7 +9,6 @@ function shapeFromToken(token){
   if(token.startsWith('[')) return ['square',unquote(token.slice(1,-1))];
   return ['round',unquote(token.slice(1,-1))];
 }
-
 function parseDiagram(source){
   const diagram={direction:(source.match(/^(?:flowchart|graph)\s+(TB|TD|BT|RL|LR)/im)||[])[1]||'LR',nodes:[],edges:[],subgraphs:[]};
   const byId=new Map(), stack=[];
@@ -37,8 +35,10 @@ function parseDiagram(source){
   });
   return diagram;
 }
-
 function layoutDiagram(diagram){
+  if(diagram.subgraphs?.length)return layoutCompound(diagram);
+  const components=connectedComponents(diagram);
+  if(components.length>1)return layoutComponents(diagram,components);
   const ranks=new Map(diagram.nodes.map(n=>[n.id,0])), incoming=new Map(diagram.nodes.map(n=>[n.id,0])), outgoing=new Map();
   diagram.edges.forEach(e=>{incoming.set(e.to,(incoming.get(e.to)||0)+1);if(!outgoing.has(e.from))outgoing.set(e.from,[]);outgoing.get(e.from).push(e.to);});
   const visit=(id,level,path=new Set())=>{ranks.set(id,Math.max(ranks.get(id)||0,level));if(path.has(id))return;const next=new Set(path);next.add(id);(outgoing.get(id)||[]).forEach(to=>visit(to,level+1,next));};
@@ -60,7 +60,7 @@ function layoutDiagram(diagram){
   const maxRank=Math.max(...layers.keys(),0);
   for(let pass=0;pass<4;pass++){for(let rank=1;rank<=maxRank;rank++)reorder(rank,rank-1,true);for(let rank=maxRank-1;rank>=0;rank--)reorder(rank,rank+1,false);}
   const vertical=diagram.direction==='TB'||diagram.direction==='TD'||diagram.direction==='BT';
-  diagram.nodes.forEach(n=>{n.width=Math.min(300,Math.max(132,n.label.length*7+36));n.height=Math.max(48,Math.ceil((n.label.length*7+36)/300)*18+24);});
+  diagram.nodes.forEach(n=>{n.width=n.width||Math.min(300,Math.max(132,n.label.length*7+36));n.height=n.height||Math.max(48,Math.ceil((n.label.length*7+36)/300)*18+24);});
   const crossSize=n=>vertical?n.width:n.height, majorSize=n=>vertical?n.height:n.width;
   const rankSizes=[...layers.keys()].sort((a,b)=>a-b).map(rank=>{const items=layers.get(rank);return {rank,items,major:Math.max(...items.map(majorSize)),cross:items.reduce((sum,n)=>sum+crossSize(n),0)+(items.length-1)*60};});
   const maxCross=Math.max(...rankSizes.map(size=>size.cross),0);
@@ -83,6 +83,51 @@ function layoutDiagram(diagram){
   const minX=Math.min(...diagram.nodes.map(n=>n.x),0),minY=Math.min(...diagram.nodes.map(n=>n.y),0);diagram.nodes.forEach(n=>{n.x-=minX-30;n.y-=minY-30;});
   return diagram;
 }
+function connectedComponents(diagram){
+  const links=new Map(diagram.nodes.map(node=>[node.id,[]]));
+  diagram.edges.forEach(edge=>{links.get(edge.from)?.push(edge.to);links.get(edge.to)?.push(edge.from);});
+  const seen=new Set(),components=[];
+  diagram.nodes.forEach(node=>{if(seen.has(node.id))return;const ids=new Set(),queue=[node.id];seen.add(node.id);while(queue.length){const id=queue.pop();ids.add(id);(links.get(id)||[]).forEach(next=>{if(!seen.has(next)){seen.add(next);queue.push(next);}});}components.push(ids);});
+  return components;
+}
+
+function layoutComponents(diagram,components){
+  const vertical=diagram.direction==='TB'||diagram.direction==='TD'||diagram.direction==='BT',packed=[],gap=140;
+  components.forEach(ids=>{const nodes=diagram.nodes.filter(node=>ids.has(node.id)),edges=diagram.edges.filter(edge=>ids.has(edge.from)&&ids.has(edge.to));const part=layoutDiagram({direction:diagram.direction,nodes,edges,subgraphs:[]});const minX=Math.min(...nodes.map(node=>node.x),0),minY=Math.min(...nodes.map(node=>node.y),0),maxX=Math.max(...nodes.map(node=>node.x+node.width),0),maxY=Math.max(...nodes.map(node=>node.y+node.height),0);packed.push({nodes,width:maxX-minX,height:maxY-minY,minX,minY});});
+  let offset=30;packed.forEach(part=>{part.nodes.forEach(node=>{node.x+=30-part.minX+(vertical?offset:0);node.y+=30-part.minY+(vertical?0:offset);});offset+=(vertical?part.width:part.height)+gap;});
+  return diagram;
+}
+
+function layoutCompound(diagram){
+  const grouped=new Set(diagram.subgraphs.flatMap(group=>group.members));
+  const outerNodes=diagram.nodes.filter(node=>!grouped.has(node.id));
+  const outerEdges=diagram.edges.filter(edge=>!grouped.has(edge.from)&&!grouped.has(edge.to));
+  layoutDiagram({direction:diagram.direction,nodes:outerNodes,edges:outerEdges,subgraphs:[]});
+  const groups=[];
+  diagram.subgraphs.forEach((group,index)=>{
+    const members=diagram.nodes.filter(node=>group.members.includes(node.id));
+    const innerEdges=diagram.edges.filter(edge=>group.members.includes(edge.from)&&group.members.includes(edge.to));
+    layoutDiagram({direction:diagram.direction,nodes:members,edges:innerEdges,subgraphs:[]});
+    const minX=Math.min(...members.map(node=>node.x),0),minY=Math.min(...members.map(node=>node.y),0),maxX=Math.max(...members.map(node=>node.x+node.width),0),maxY=Math.max(...members.map(node=>node.y+node.height),0);
+    groups.push({group,members,minX,minY,width:maxX-minX+56,height:maxY-minY+56});
+  });
+  const vertical=diagram.direction==='TB'||diagram.direction==='TD'||diagram.direction==='BT';
+  groups.forEach(({group,members,minX,minY,width,height})=>{
+    const incoming=diagram.edges.filter(edge=>group.members.includes(edge.to)&&!grouped.has(edge.from)).map(edge=>nodeByDiagramId(outerNodes,edge.from)).filter(Boolean);
+    const outgoing=diagram.edges.filter(edge=>group.members.includes(edge.from)&&!grouped.has(edge.to)).map(edge=>nodeByDiagramId(outerNodes,edge.to)).filter(Boolean);
+    let x=30,y=30;
+    if(vertical&&incoming.length){x=incoming.reduce((sum,node)=>sum+node.x+node.width/2,0)/incoming.length-width/2;y=Math.max(...incoming.map(node=>node.y+node.height))+120;}
+    else if(vertical&&outgoing.length){x=outgoing.reduce((sum,node)=>sum+node.x+node.width/2,0)/outgoing.length-width/2;y=Math.min(...outgoing.map(node=>node.y))-height-120;}
+    else if(!vertical&&incoming.length){x=Math.max(...incoming.map(node=>node.x+node.width))+120;y=incoming.reduce((sum,node)=>sum+node.y+node.height/2,0)/incoming.length-height/2;}
+    else if(!vertical&&outgoing.length){x=Math.min(...outgoing.map(node=>node.x))-width-120;y=outgoing.reduce((sum,node)=>sum+node.y+node.height/2,0)/outgoing.length-height/2;}
+    else {const right=Math.max(...outerNodes.map(node=>node.x+node.width),30);x=vertical?right+160:30;y=vertical?30:Math.max(...outerNodes.map(node=>node.y+node.height),30)+160;}
+    members.forEach(node=>{node.x+=x-minX+28;node.y+=y-minY+42;}); group.bounds={x,y,width,height};
+  });
+  diagram.nodes=outerNodes.concat(groups.flatMap(item=>item.members));
+  return diagram;
+}
+
+function nodeByDiagramId(nodes,id){return nodes.find(node=>node.id===id);}
 
 function applyMermaid(source){
   const diagram=layoutDiagram(parseDiagram(source));

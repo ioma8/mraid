@@ -14,4 +14,8 @@ assert.equal(diagram.edges.find(edge => edge.label === 'Key Event').from, 'H');
 assert.equal(diagram.edges.find(edge => edge.label === 'Message Received').to, 'M');
 assert(diagram.subgraphs.every(group => group.members.length > 0));
 assert(diagram.nodes.every(node => Number.isFinite(node.x) && Number.isFinite(node.y)));
+const drawUi = diagram.subgraphs.find(group => group.label === 'TerminalUI.draw_ui()');
+const features = diagram.subgraphs.find(group => group.label === 'Features');
+assert(drawUi.bounds.y > diagram.nodes.find(node => node.id === 'G').y);
+assert(features.bounds.x > drawUi.bounds.x);
 console.log('complex Mermaid diagram parses and lays out correctly');
