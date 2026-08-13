@@ -17,7 +17,7 @@ vendor/dagre.min.js → state.js → mermaid.js → canvas.js → ui.js → main
 - `mermaid.js` is **NOT the Mermaid library** — a hand-written parser/layout/serializer for a small flowchart subset (no `classDef`, styling, or non-flowchart types). Exports `parseDiagram`, `layoutDiagram`, `applyMermaid`, `toMermaid`; CommonJS guard on line 25 enables Node tests.
 - `canvas.js` owns rendering + interactions: `render()`, `drawEdges()`, `positionSubgraphs()`, pan/zoom, drag, inline edit, context menu.
 - `ui.js` wires buttons/keyboard + the WKWebView native bridge.
-- `main.js` is one line: `render();` — boots the demo diagram.
+- `main.js` lays out the initial state via `layoutDiagram` (same algorithm as Relayout / code import), then calls `render()`.
 
 **Two-way sync** (the central invariant):
 - Canvas → code: interactions mutate globals → `render()` rebuilds DOM → `codeEditor.value = toMermaid()`.

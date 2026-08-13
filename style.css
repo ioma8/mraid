@@ -15,3 +15,4 @@ html,body{user-select:none;-webkit-user-select:none}input,textarea,select,[conte
 .code-panel{display:flex;flex-direction:column}.code-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:#fbfbfc}.code-panel textarea{position:relative;z-index:1;background:transparent;white-space:pre;overflow:auto;line-height:17px;height:100%}.code-highlight{position:absolute;top:0;left:0;pointer-events:none;z-index:0}.code-highlight-line{position:absolute;left:0;right:0;background:rgba(112,89,232,.16)}
 .code-highlight-line{height:17px}
 .node.circle{border-radius:50%}
+.toolbar-actions{display:flex;align-items:center;gap:12px}.relayout{height:25px;padding:0 11px;border:1px solid var(--line);border-radius:5px;background:#fff;color:#787e89;font-size:12px;font-weight:600;cursor:pointer}.relayout:hover{color:var(--purple);border-color:var(--purple)}

@@ -62,6 +62,7 @@ function startEdgeLabelEdit(mx,my,index){
 }
 
 function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
+function currentViewCenter(){ return {x:(canvasWrap.clientWidth-2*panX)/(2*zoom),y:(canvasWrap.clientHeight-2*panY)/(2*zoom)}; }
 function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
 
 splitter.addEventListener('pointerdown',event=>{
@@ -137,12 +138,12 @@ function startDrag(e){
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
   selected=id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
   const move=ev=>{
-    let x=Math.max(12,Math.round(ox+(ev.clientX-startX)/zoom));
-    let y=Math.max(12,Math.round(oy+(ev.clientY-startY)/zoom));
+    let x=Math.round(ox+(ev.clientX-startX)/zoom);
+    let y=Math.round(oy+(ev.clientY-startY)/zoom);
     if(ev.shiftKey){ x=Math.round(x/20)*20; y=Math.round(y/20)*20; }
-    n.x=x; n.y=y; el.style.left=n.x+'px';el.style.top=n.y+'px';drawEdges();
+    n.x=x; n.y=y; el.style.left=n.x+'px';el.style.top=n.y+'px';drawEdges();positionSubgraphs();
   };
-  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);codeEditor.value=toMermaid();};
+  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);};
   document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
 }
 

@@ -12,10 +12,10 @@ const splitter = document.querySelector('#splitter');
 const codePanel = document.querySelector('.code-panel');
 
 let nodes = [
-  { id:'A', label:'Start here', x:150, y:165, shape:'round' },
-  { id:'B', label:'Make a decision', x:390, y:165, shape:'diamond' },
-  { id:'C', label:'Keep going', x:650, y:95, shape:'round' },
-  { id:'D', label:'Finish', x:650, y:245, shape:'pill' }
+  { id:'A', label:'Start here', shape:'round' },
+  { id:'B', label:'Make a decision', shape:'diamond' },
+  { id:'C', label:'Keep going', shape:'round' },
+  { id:'D', label:'Finish', shape:'pill' }
 ];
 let edges = [{from:'A',to:'B',label:''},{from:'B',to:'C',label:''},{from:'B',to:'D',label:''}];
 let selected = null, selectedEdge = null, connecting = false, source = null, zoom = 1, panX = 0, panY = 0, spaceDown = false, direction = 'LR', subgraphs = [];

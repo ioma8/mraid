@@ -9,7 +9,7 @@ function parseDiagram(source){
     const definition=line.match(/^([A-Za-z_]\w*)\s*(\(\[.*\]\)|\{\{.*\}\}|\(\(.*\)\)|\[.*\]|\(.*\))$/);if(definition){const[shape,label]=shapeFromToken(definition[2]),node=ensure(definition[1],label,shape);node.label=label;node.shape=shape;}else{const bare=line.match(/^([A-Za-z_]\w*)$/);if(bare)ensure(bare[1],bare[1],'round');}
   });return diagram;
 }
-function layoutDiagram(diagram){
+function layoutDiagram(diagram,center){center=center||{x:650,y:450};
   const rankdir=diagram.direction==='TD'||diagram.direction==='TB'?'TB':diagram.direction,graph=new dagre.graphlib.Graph({compound:true}).setGraph({rankdir,nodesep:60,ranksep:80,marginx:40,marginy:40}).setDefaultEdgeLabel(()=>({}));
   const size=node=>{node.width=node.width||Math.min(300,Math.max(132,node.label.length*7+36));node.height=node.height||(node.shape==='diamond'||node.shape==='circle'?node.width:Math.max(48,Math.ceil((node.label.length*7+36)/300)*18+24));return node;};
   diagram.nodes.forEach(node=>graph.setNode(node.id,size(node)));
@@ -18,8 +18,14 @@ function layoutDiagram(diagram){
   dagre.layout(graph);
   diagram.nodes.forEach(node=>{const placed=graph.node(node.id);node.x=placed.x-node.width/2;node.y=placed.y-node.height/2;});
   diagram.subgraphs.forEach(group=>{const placed=graph.node(group.id);group.bounds={x:placed.x-placed.width/2,y:placed.y-placed.height/2,width:placed.width,height:placed.height};});
+  if(diagram.nodes.length||diagram.subgraphs.length){
+    const minX=Math.min(...diagram.nodes.map(n=>n.x),...diagram.subgraphs.map(g=>g.bounds.x)),maxX=Math.max(...diagram.nodes.map(n=>n.x+n.width),...diagram.subgraphs.map(g=>g.bounds.x+g.bounds.width)),minY=Math.min(...diagram.nodes.map(n=>n.y),...diagram.subgraphs.map(g=>g.bounds.y)),maxY=Math.max(...diagram.nodes.map(n=>n.y+n.height),...diagram.subgraphs.map(g=>g.bounds.y+g.bounds.height));
+    const dx=center.x-(minX+maxX)/2,dy=center.y-(minY+maxY)/2;
+    diagram.nodes.forEach(n=>{n.x+=dx;n.y+=dy;});
+    diagram.subgraphs.forEach(g=>{g.bounds.x+=dx;g.bounds.y+=dy;});
+  }
   return diagram;
 }
-function applyMermaid(source){const diagram=layoutDiagram(parseDiagram(source));if(!diagram.nodes.length)return;direction=diagram.direction;nodes=diagram.nodes;edges=diagram.edges;subgraphs=diagram.subgraphs;selected=null;selectedEdge=null;render(false);}
+function applyMermaid(source){const diagram=layoutDiagram(parseDiagram(source),currentViewCenter());if(!diagram.nodes.length)return;direction=diagram.direction;nodes=diagram.nodes;edges=diagram.edges;subgraphs=diagram.subgraphs;selected=null;selectedEdge=null;render(false);}
 function toMermaid(){const lines=nodes.map(n=>{const body=n.shape==='diamond'?`{{${n.label}}}`:n.shape==='pill'?`([${n.label}])`:n.shape==='square'?`[${n.label}]`:n.shape==='circle'?`((${n.label}))`:`(${n.label})`;return`    ${n.id}${body}`;}),groups=subgraphs.map(group=>`    subgraph ${group.label}\n${group.members.map(id=>`        ${id}`).join('\n')}\n    end`),links=edges.map(e=>`    ${e.from} -->${e.label?`|${e.label}|`:''} ${e.to}`);return`flowchart ${direction}\n${lines.concat(groups,links).join('\n')}`;}
 if(typeof module!=='undefined')module.exports={parseDiagram,layoutDiagram};
