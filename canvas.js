@@ -1,5 +1,5 @@
 function render(syncCode=true){
-  nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.width||132}px${n.shape==='diamond'?`;height:${n.height||n.width||132}px`:''}"><span>${esc(n.label)}</span></div>`).join('');
+  nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.width||132}px${n.shape==='diamond'||n.shape==='circle'?`;height:${n.height||n.width||132}px`:''}"><span>${esc(n.label)}</span></div>`).join('');
   subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); el.addEventListener('contextmenu',openNodeMenu); });
@@ -107,13 +107,15 @@ function drawEdges(){
     const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
     const a=document.querySelector(`[data-id="${from.id}"]`),b=document.querySelector(`[data-id="${to.id}"]`); if(!a||!b)return;
     let x1=from.x+a.offsetWidth/2,y1=from.y+a.offsetHeight/2,x2=to.x+b.offsetWidth/2,y2=to.y+b.offsetHeight/2;
-    const vertical=direction==='TB'||direction==='TD'||direction==='BT',bend=Math.max(40,(vertical?Math.abs(y2-y1):Math.abs(x2-x1))*.42);
-    if(vertical){const down=y2>=y1;y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{const right=x2>=x1;x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
+    const vertical=direction==='TB'||direction==='TD'||direction==='BT',down=y2>=y1,right=x2>=x1,bend=Math.max(40,(vertical?Math.abs(y2-y1):Math.abs(x2-x1))*.42);
+    if(vertical){y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
+    const mx=(x1+x2)/2,my=(y1+y2)/2;
+    if(b.classList.contains('diamond')){const v=b.offsetWidth*(Math.SQRT1_2-.5);if(vertical)y2+=down?-v:v;else x2+=right?-v:v;}
     const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index?'selected':''}`); path.dataset.edge=index;
     path.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();drawEdges();});
     path.addEventListener('contextmenu',event=>openEdgeMenu(event,index));
     path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
-    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; text.dataset.mx=(x1+x2)/2; text.dataset.my=(y1+y2)/2-6; text.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
+    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',mx); text.setAttribute('y',my-6); text.textContent=edge.label; text.dataset.mx=mx; text.dataset.my=my-6; text.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
   });
 }
 

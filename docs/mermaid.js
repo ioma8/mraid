@@ -11,7 +11,7 @@ function parseDiagram(source){
 }
 function layoutDiagram(diagram){
   const rankdir=diagram.direction==='TD'||diagram.direction==='TB'?'TB':diagram.direction,graph=new dagre.graphlib.Graph({compound:true}).setGraph({rankdir,nodesep:60,ranksep:80,marginx:40,marginy:40}).setDefaultEdgeLabel(()=>({}));
-  const size=node=>{node.width=node.width||Math.min(300,Math.max(132,node.label.length*7+36));node.height=node.height||(node.shape==='diamond'?node.width:Math.max(48,Math.ceil((node.label.length*7+36)/300)*18+24));return node;};
+  const size=node=>{node.width=node.width||Math.min(300,Math.max(132,node.label.length*7+36));node.height=node.height||(node.shape==='diamond'||node.shape==='circle'?node.width:Math.max(48,Math.ceil((node.label.length*7+36)/300)*18+24));return node;};
   diagram.nodes.forEach(node=>graph.setNode(node.id,size(node)));
   diagram.subgraphs.forEach((group,index)=>{const id=`\u00A7subgraph_${index}`;group.id=id;graph.setNode(id,{label:group.label});group.members.forEach(member=>graph.setParent(member,id));});
   diagram.edges.forEach(edge=>graph.setEdge(edge.from,edge.to,{label:edge.label,width:edge.label?edge.label.length*7+12:0,height:edge.label?18:0}));
