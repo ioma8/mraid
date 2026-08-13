@@ -3,26 +3,28 @@ function render(syncCode=true){
   subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); el.addEventListener('contextmenu',openNodeMenu); });
-  requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid();
+  requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid(); syncCodeHighlight();
 }
 
 function openNodeMenu(event){
-  event.preventDefault(); event.stopPropagation(); hideEdgeMenu(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; selectedEdge=null; updateProperties();
+  event.preventDefault(); event.stopPropagation(); hideEdgeMenu(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===selected)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
   nodeMenu.style.left=`${event.clientX}px`; nodeMenu.style.top=`${event.clientY}px`; nodeMenu.classList.add('open');
 }
 
 function openEdgeMenu(event,index){
   event.preventDefault(); event.stopPropagation(); hideNodeMenu();
   selected=null; selectedEdge=index;
+  nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));
+  edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.toggle('selected',+edge.dataset.edge===index));
   edgeMenu.querySelector('[data-action="add-label"]').style.display=edges[index].label?'none':'';
   edgeMenu.querySelector('[data-action="remove-label"]').style.display=edges[index].label?'':'none';
-  edgeMenu.style.left=`${event.clientX}px`; edgeMenu.style.top=`${event.clientY}px`; edgeMenu.classList.add('open');
+  edgeMenu.style.left=`${event.clientX}px`; edgeMenu.style.top=`${event.clientY}px`; edgeMenu.classList.add('open'); syncCodeHighlight();
 }
 
 function startInlineEdit(event){
   event.preventDefault(); event.stopPropagation();
   const node=nodeById(event.currentTarget.dataset.id),field=event.currentTarget.querySelector('span');
-  selected=node.id; field.contentEditable='true'; field.classList.add('inline-editing'); field.focus();
+  selected=node.id; selectedEdge=null; edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); field.contentEditable='true'; field.classList.add('inline-editing'); field.focus();
   const selection=window.getSelection(); selection?.selectAllChildren(field);
   const finish=commit=>{
     if(!field.isContentEditable)return;
@@ -38,6 +40,9 @@ function startInlineEdit(event){
 }
 
 function startEdgeLabelEdit(mx,my,index){
+  selected=null; selectedEdge=index;
+  nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));
+  edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));
   const edge=edges[index],el=document.createElement('div');
   el.className='edge-label-editing'; el.textContent=edge.label; el.contentEditable='true';
   el.style.left=mx+'px'; el.style.top=my+'px';
@@ -105,29 +110,30 @@ function drawEdges(){
     const vertical=direction==='TB'||direction==='TD'||direction==='BT',bend=Math.max(40,(vertical?Math.abs(y2-y1):Math.abs(x2-x1))*.42);
     if(vertical){const down=y2>=y1;y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{const right=x2>=x1;x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
     const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index?'selected':''}`); path.dataset.edge=index;
-    path.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;updateProperties();drawEdges();});
+    path.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();drawEdges();});
     path.addEventListener('contextmenu',event=>openEdgeMenu(event,index));
     path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
-    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; text.dataset.mx=(x1+x2)/2; text.dataset.my=(y1+y2)/2-6; text.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
+    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; text.dataset.mx=(x1+x2)/2; text.dataset.my=(y1+y2)/2-6; text.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
   });
 }
 
 function selectNode(e){
   const id=e.currentTarget.dataset.id;
   if(connecting){
-    if(!source){ source=id; render(); return; }
+    if(!source){ source=id; selected=id; selectedEdge=null; render(); return; }
     if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)) edges.push({from:source,to:id,label:''});
     source=null; connecting=false; document.querySelector('#connectBtn').classList.remove('active'); render(); return;
   }
   selected=id; selectedEdge=null;
   nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===id));
+  edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));
   updateProperties();
 }
 
 function startDrag(e){
   if(e.button!==0||spaceDown||e.currentTarget.querySelector('[contenteditable="true"]'))return;
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
-  selected=id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); updateProperties();
+  selected=id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
   const move=ev=>{
     let x=Math.max(12,Math.round(ox+(ev.clientX-startX)/zoom));
     let y=Math.max(12,Math.round(oy+(ev.clientY-startY)/zoom));
@@ -142,4 +148,26 @@ function updateProperties(){
   const n=nodeById(selected), label=document.querySelector('#labelInput'), shape=document.querySelector('#shapeInput'), del=document.querySelector('#deleteBtn');
   document.querySelector('#selectedId').textContent=n?.id||'—'; label.disabled=shape.disabled=del.disabled=!n;
   if(n){ label.value=n.label; shape.value=n.shape; }
+  syncCodeHighlight();
+}
+
+function syncCodeHighlight(){
+  const lines=codeEditor.value.split('\n');
+  let index=-1;
+  if(selectedEdge!==null&&edges[selectedEdge]){
+    const e=edges[selectedEdge],pattern=new RegExp(`^\\s*${e.from}\\s+-->\\s*(?:\\|[^|]*\\|\\s*)?${e.to}\\s*(?:[({[]|$)`);
+    index=lines.findIndex(line=>pattern.test(line));
+  } else if(selected!==null){
+    const pattern=new RegExp(`^\\s*${selected}\\s*(?:[({[]|$)`);
+    index=lines.findIndex(line=>pattern.test(line));
+  }
+  codeHighlight.innerHTML='';
+  if(index>=0){const bar=document.createElement('div');bar.className='code-highlight-line';bar.style.top=(10+index*17)+'px';codeHighlight.appendChild(bar);}
+  applyHighlightTransform();
+}
+
+function applyHighlightTransform(){
+  codeHighlight.style.width=Math.max(codeEditor.scrollWidth,codeEditor.clientWidth)+'px';
+  codeHighlight.style.height=Math.max(codeEditor.scrollHeight,codeEditor.clientHeight)+'px';
+  codeHighlight.style.transform=`translate(${-codeEditor.scrollLeft}px,${-codeEditor.scrollTop}px)`;
 }

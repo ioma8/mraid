@@ -3,6 +3,7 @@ const nodesEl = document.querySelector('#nodes');
 const subgraphsEl = document.querySelector('#subgraphs');
 const edgesEl = document.querySelector('#edges');
 const codeEditor = document.querySelector('#codeEditor');
+const codeHighlight = document.querySelector('#codeHighlight');
 const canvasWrap = document.querySelector('#canvasWrap');
 const emptyState = document.querySelector('#emptyState');
 const nodeMenu = document.querySelector('#nodeMenu');
