@@ -17,11 +17,16 @@ asset embeddedHTML "$ROOT/index.html"
 asset embeddedCSS "$ROOT/style.css"
 
 mkdir -p "$ROOT/docs"
+mkdir -p "$ROOT/docs/vendor"
 cp "$ROOT/index.html" "$ROOT/docs/editor.html"
 cp "$ROOT/style.css" "$ROOT/state.js" "$ROOT/mermaid.js" "$ROOT/canvas.js" "$ROOT/ui.js" "$ROOT/main.js" "$ROOT/docs/"
+cp "$ROOT/vendor/dagre.min.js" "$ROOT/vendor/DAGRE-LICENSE" "$ROOT/docs/vendor/"
 
 {
   printf 'let embeddedJS = #"""\n'
+  printf 'eval(atob("'
+  base64 -i "$ROOT/vendor/dagre.min.js" | tr -d '\n'
+  printf '"));\n'
   for file in state.js mermaid.js canvas.js ui.js main.js; do cat "$ROOT/$file"; printf '\n'; done
   printf '"""#\n'
 } >> "$GENERATED"
