@@ -29,6 +29,26 @@ function startInlineEdit(event){
   };
 }
 
+function startEdgeLabelEdit(event,index){
+  event.preventDefault(); event.stopPropagation();
+  const edge=edges[index],el=document.createElement('div');
+  el.className='edge-label-editing'; el.textContent=edge.label; el.contentEditable='true';
+  el.style.left=event.currentTarget.dataset.mx+'px'; el.style.top=event.currentTarget.dataset.my+'px';
+  canvas.appendChild(el); el.focus();
+  const selection=window.getSelection(); selection?.selectAllChildren(el);
+  const finish=commit=>{
+    if(!el.isContentEditable)return;
+    const value=el.textContent.trim(); el.contentEditable='false'; el.remove();
+    if(commit&&value)edge.label=value;
+    render();
+  };
+  el.onblur=()=>finish(true);
+  el.onkeydown=keyEvent=>{
+    if(keyEvent.key==='Escape'){keyEvent.preventDefault();finish(false);}
+    if(keyEvent.key==='Enter'){keyEvent.preventDefault();finish(true);}
+  };
+}
+
 function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
 function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
 
@@ -70,7 +90,7 @@ function positionSubgraphs(){
 }
 
 function drawEdges(){
-  edgesEl.querySelectorAll('.edge').forEach(e=>e.remove());
+  edgesEl.querySelectorAll('.edge,.edge-label').forEach(e=>e.remove());
   edges.forEach((edge,index)=>{
     const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
     const a=document.querySelector(`[data-id="${from.id}"]`),b=document.querySelector(`[data-id="${to.id}"]`); if(!a||!b)return;
@@ -80,7 +100,7 @@ function drawEdges(){
     const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index?'selected':''}`); path.dataset.edge=index;
     path.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;updateProperties();drawEdges();});
     path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
-    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; edgesEl.appendChild(text); }
+    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',(x1+x2)/2); text.setAttribute('y',(y1+y2)/2-6); text.textContent=edge.label; text.dataset.mx=(x1+x2)/2; text.dataset.my=(y1+y2)/2-6; text.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));}); text.addEventListener('dblclick',event=>startEdgeLabelEdit(event,index)); edgesEl.appendChild(text); }
   });
 }
 
