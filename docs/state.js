@@ -6,6 +6,7 @@ const codeEditor = document.querySelector('#codeEditor');
 const canvasWrap = document.querySelector('#canvasWrap');
 const emptyState = document.querySelector('#emptyState');
 const nodeMenu = document.querySelector('#nodeMenu');
+const edgeMenu = document.querySelector('#edgeMenu');
 const splitter = document.querySelector('#splitter');
 const codePanel = document.querySelector('.code-panel');
 
