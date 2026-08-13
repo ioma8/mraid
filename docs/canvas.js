@@ -76,17 +76,25 @@ function startMarquee(event){
   const up=ev=>{
     const x=Math.round((ev.clientX-rect.left-panX)/zoom),y=Math.round((ev.clientY-rect.top-panY)/zoom);
     document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); el.remove();
-    if(Math.abs(x-sx)<3&&Math.abs(y-sy)<3){clearMultiSelection();selected=null;selectedEdge=null;render();return;}
-    const left=Math.min(sx,x),top=Math.min(sy,y),right=Math.max(sx,x),bottom=Math.max(sy,y),ids=[];
+    const shift=ev.shiftKey;
+    if(Math.abs(x-sx)<3&&Math.abs(y-sy)<3){if(!shift){clearMultiSelection();selected=null;selectedEdge=null;render();}return;}
+    const left=Math.min(sx,x),top=Math.min(sy,y),right=Math.max(sx,x),bottom=Math.max(sy,y),ids=[],edgeIndexes=[];
     nodes.forEach(n=>{if(n.x<right&&n.x+n.width>left&&n.y<bottom&&n.y+n.height>top)ids.push(n.id);});
-    clearMultiSelection();
-    ids.forEach(id=>multiNodes.add(id));
     edges.forEach((edge,index)=>{
       const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
       const mx=(from.x+from.width/2+to.x+to.width/2)/2,my=(from.y+from.height/2+to.y+to.height/2)/2;
-      if(mx>left&&mx<right&&my>top&&my<bottom)multiEdges.add(index);
+      if(mx>left&&mx<right&&my>top&&my<bottom)edgeIndexes.push(index);
     });
-    selected=ids[0]||null; selectedEdge=multiEdges.size?[...multiEdges][0]:null; render();
+    if(shift)seedMultiSelection();else clearMultiSelection();
+    ids.forEach(id=>multiNodes.add(id));
+    edgeIndexes.forEach(index=>multiEdges.add(index));
+    if(shift){
+      if(selected===null&&multiNodes.size)selected=[...multiNodes][0];
+      if(selectedEdge===null&&multiEdges.size)selectedEdge=[...multiEdges][0];
+    }else{
+      selected=ids[0]||null; selectedEdge=edgeIndexes[0]||null;
+    }
+    render();
   };
   document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
 }
@@ -108,7 +116,7 @@ canvasWrap.addEventListener('pointerdown',event=>{
     canvasWrap.addEventListener('pointermove',move);canvasWrap.addEventListener('pointerup',up);
     return;
   }
-  if(event.button===0&&!event.target.closest('.node,.edge,.edge-label,.subgraph'))startMarquee(event);
+  if(event.button===0&&!event.target.closest('.node,.edge,.edge-hit,.edge-label,.subgraph'))startMarquee(event);
 });
 canvasWrap.addEventListener('wheel',event=>{
   const altPressed=event.altKey||event.getModifierState?.('Alt');
@@ -132,7 +140,7 @@ function positionSubgraphs(){
 }
 
 function drawEdges(){
-  edgesEl.querySelectorAll('.edge,.edge-label').forEach(e=>e.remove());
+  edgesEl.querySelectorAll('.edge,.edge-hit,.edge-label').forEach(e=>e.remove());
   edges.forEach((edge,index)=>{
     const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
     const a=document.querySelector(`[data-id="${from.id}"]`),b=document.querySelector(`[data-id="${to.id}"]`); if(!a||!b)return;
@@ -141,8 +149,9 @@ function drawEdges(){
     if(vertical){y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
     const mx=(x1+x2)/2,my=(y1+y2)/2;
     if(b.classList.contains('diamond')){const v=b.offsetWidth*(Math.SQRT1_2-.5);if(vertical)y2+=down?-v:v;else x2+=right?-v:v;}
-    const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index||multiEdges.has(index)?'selected':''}`); path.dataset.edge=index;
-    path.addEventListener('click',event=>{
+    const d=vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`;
+    const hit=document.createElementNS('http://www.w3.org/2000/svg','path'); hit.setAttribute('class','edge-hit'); hit.dataset.edge=index;
+    hit.addEventListener('click',event=>{
       event.stopPropagation();
       if(event.shiftKey){
         seedMultiSelection();
@@ -154,8 +163,9 @@ function drawEdges(){
       }
       clearMultiSelection();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();drawEdges();
     });
-    path.addEventListener('contextmenu',event=>openEdgeMenu(event,index));
-    path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
+    hit.addEventListener('contextmenu',event=>openEdgeMenu(event,index));
+    hit.setAttribute('d',d); edgesEl.appendChild(hit);
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index||multiEdges.has(index)?'selected':''}`); path.dataset.edge=index; path.setAttribute('d',d); edgesEl.appendChild(path);
     if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',mx); text.setAttribute('y',my-6); text.textContent=edge.label; text.dataset.mx=mx; text.dataset.my=my-6; text.addEventListener('click',event=>{
   event.stopPropagation();
   if(event.shiftKey){
