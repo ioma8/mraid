@@ -8,6 +8,7 @@ const canvasWrap = document.querySelector('#canvasWrap');
 const emptyState = document.querySelector('#emptyState');
 const nodeMenu = document.querySelector('#nodeMenu');
 const edgeMenu = document.querySelector('#edgeMenu');
+const subgraphMenu = document.querySelector('#subgraphMenu');
 const splitter = document.querySelector('#splitter');
 const codePanel = document.querySelector('.code-panel');
 
@@ -18,7 +19,8 @@ let nodes = [
   { id:'D', label:'Finish', shape:'pill' }
 ];
 let edges = [{from:'A',to:'B',label:''},{from:'B',to:'C',label:''},{from:'B',to:'D',label:''}];
-let selected = null, selectedEdge = null, connecting = false, source = null, zoom = 1, panX = 0, panY = 0, spaceDown = false, direction = 'LR', subgraphs = [], multiNodes = new Set(), multiEdges = new Set(), suppressClickToggle = false;
+let selected = null, selectedEdge = null, selectedSubgraph = null, connecting = false, source = null, zoom = 1, panX = 0, panY = 0, spaceDown = false, direction = 'LR', subgraphs = [], multiNodes = new Set(), multiEdges = new Set(), multiSubgraphs = new Set(), suppressClickToggle = false;
 
 function nodeById(id){ return nodes.find(n=>n.id===id); }
 function esc(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+function escRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }

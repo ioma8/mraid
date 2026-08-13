@@ -3,14 +3,16 @@ function nativeMessage(message){
 }
 
 document.querySelector('#addNodeBtn').onclick=()=>{
-  const id=String.fromCharCode(65+nodes.length); nodes.push({id,label:'New node',x:100+(nodes.length%3)*220,y:100+(nodes.length%3)*110,shape:'round'}); clearMultiSelection(); selected=id; selectedEdge=null; render();
+  const id=String.fromCharCode(65+nodes.length); nodes.push({id,label:'New node',x:100+(nodes.length%3)*220,y:100+(nodes.length%3)*110,shape:'round'}); clearSelection(); selected=id; render();
 };
 function nextNodeId(){let i=0;while(nodes.some(n=>n.id===String.fromCharCode(65+i)))i++;if(i<26)return String.fromCharCode(65+i);let suffix=1;while(nodes.some(n=>n.id===`N${suffix}`))suffix++;return `N${suffix}`;}
 function hideNodeMenu(){nodeMenu.classList.remove('open');}
 function hideEdgeMenu(){edgeMenu.classList.remove('open');}
-function duplicateSelected(){const original=nodeById(selected);if(!original)return;const id=nextNodeId(),copy={...original,id,label:`${original.label} copy`};nodes.push(copy);edges.push(...edges.filter(edge=>edge.to===original.id).map(edge=>({...edge,to:id})));subgraphs.forEach(group=>{if(group.members.includes(original.id))group.members.push(id);});clearMultiSelection();selected=id;selectedEdge=null;hideNodeMenu();relayout();}
-function deleteSelected(){hideNodeMenu();if(multiNodes.size||multiEdges.size){const ids=new Set(multiNodes);edges=edges.filter((e,i)=>!multiEdges.has(i)&&!ids.has(e.from)&&!ids.has(e.to));nodes=nodes.filter(n=>!ids.has(n.id));subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>!ids.has(id))}));clearMultiSelection();selected=null;selectedEdge=null;render();return;}if(selectedEdge!==null){edges.splice(selectedEdge,1);selectedEdge=null;render();return;}if(selected){nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(x=>x.from!==selected&&x.to!==selected);subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>id!==selected)}));selected=null;render();}}
+function hideSubgraphMenu(){subgraphMenu.classList.remove('open');}
+function duplicateSelected(){const original=nodeById(selected);if(!original)return;const id=nextNodeId(),copy={...original,id,label:`${original.label} copy`};nodes.push(copy);edges.push(...edges.filter(edge=>edge.to===original.id).map(edge=>({...edge,to:id})));subgraphs.forEach(group=>{if(group.members.includes(original.id))group.members.push(id);});clearSelection();selected=id;hideNodeMenu();relayout();}
+function deleteSelected(){hideNodeMenu();hideSubgraphMenu();if(multiNodes.size||multiEdges.size||multiSubgraphs.size){const ids=new Set(multiNodes);edges=edges.filter((e,i)=>!multiEdges.has(i)&&!ids.has(e.from)&&!ids.has(e.to));nodes=nodes.filter(n=>!ids.has(n.id));subgraphs=subgraphs.filter((g,i)=>!multiSubgraphs.has(i)).map(g=>({...g,members:g.members.filter(id=>!ids.has(id))}));clearSelection();render();return;}if(selectedEdge!==null){edges.splice(selectedEdge,1);selectedEdge=null;render();return;}if(selectedSubgraph!==null){subgraphs.splice(selectedSubgraph,1);selectedSubgraph=null;render();return;}if(selected){nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(x=>x.from!==selected&&x.to!==selected);subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>id!==selected)}));selected=null;render();}}
 nodeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>button.dataset.action==='duplicate'?duplicateSelected():deleteSelected());
+subgraphMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{hideSubgraphMenu();deleteSelected();});
 edgeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{
   if(selectedEdge===null)return;
   const action=button.dataset.action;
@@ -22,7 +24,7 @@ edgeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{
   if(action==='remove-label'){edges[selectedEdge].label='';selectedEdge=null;}
   hideEdgeMenu(); render();
 });
-document.addEventListener('pointerdown',event=>{if(!event.target.closest?.('#nodeMenu')&&!event.target.closest?.('#edgeMenu')){hideNodeMenu();hideEdgeMenu();}});
+document.addEventListener('pointerdown',event=>{if(!event.target.closest?.('#nodeMenu')&&!event.target.closest?.('#edgeMenu')&&!event.target.closest?.('#subgraphMenu')){hideNodeMenu();hideEdgeMenu();hideSubgraphMenu();}});
 document.querySelector('#connectBtn').onclick=()=>{ connecting=!connecting; source=null; document.querySelector('#connectBtn').classList.toggle('active',connecting); };
 document.querySelector('#labelInput').oninput=e=>{const n=nodeById(selected);if(n){n.label=e.target.value;render();}};
 document.querySelector('#shapeInput').onchange=e=>{const n=nodeById(selected);if(n){n.shape=e.target.value;render();}};

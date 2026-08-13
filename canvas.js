@@ -1,20 +1,21 @@
 function render(syncCode=true){
   nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id||multiNodes.has(n.id)?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.width||132}px${n.shape==='diamond'||n.shape==='circle'?`;height:${n.height||n.width||132}px`:''}"><span>${esc(n.label)}</span></div>`).join('');
-  subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
+  subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph ${selectedSubgraph===index||multiSubgraphs.has(index)?'selected':''}" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); el.addEventListener('contextmenu',openNodeMenu); });
+  subgraphsEl.querySelectorAll('.subgraph').forEach(el=>{ el.addEventListener('pointerdown',startSubgraphDrag); el.addEventListener('click',event=>{event.stopPropagation();if(suppressClickToggle){suppressClickToggle=false;return;}selectSubgraph(+el.dataset.subgraph,event.shiftKey);}); el.addEventListener('dblclick',startSubgraphRename); el.addEventListener('contextmenu',event=>openSubgraphMenu(event,+el.dataset.subgraph)); });
   requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid(); syncCodeHighlight();
 }
 
 function openNodeMenu(event){
-  event.preventDefault(); event.stopPropagation(); hideEdgeMenu(); clearMultiSelection(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===selected)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
+  event.preventDefault(); event.stopPropagation(); hideEdgeMenu(); hideSubgraphMenu(); clearSelection(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; clearSelectionClasses(); nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===selected)); updateProperties();
   nodeMenu.style.left=`${event.clientX}px`; nodeMenu.style.top=`${event.clientY}px`; nodeMenu.classList.add('open');
 }
 
 function openEdgeMenu(event,index){
-  event.preventDefault(); event.stopPropagation(); hideNodeMenu(); clearMultiSelection();
-  selected=null; selectedEdge=index;
-  nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));
+  event.preventDefault(); event.stopPropagation(); hideNodeMenu(); hideSubgraphMenu(); clearSelection();
+  selectedEdge=index;
+  clearSelectionClasses();
   edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.toggle('selected',+edge.dataset.edge===index));
   edgeMenu.querySelector('[data-action="add-label"]').style.display=edges[index].label?'none':'';
   edgeMenu.querySelector('[data-action="remove-label"]').style.display=edges[index].label?'':'none';
@@ -24,12 +25,39 @@ function openEdgeMenu(event,index){
 function startInlineEdit(event){
   event.preventDefault(); event.stopPropagation();
   const node=nodeById(event.currentTarget.dataset.id),field=event.currentTarget.querySelector('span');
-  clearMultiSelection(); selected=node.id; selectedEdge=null; edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); field.contentEditable='true'; field.classList.add('inline-editing'); field.focus();
-  const selection=window.getSelection(); selection?.selectAllChildren(field);
-  const finish=commit=>{
+  clearSelection(); selected=node.id; clearSelectionClasses(); inlineEdit(field,node.label,value=>node.label=value);
+}
+
+function startEdgeLabelEdit(mx,my,index){
+  clearSelection(); selectedEdge=index;
+  clearSelectionClasses();
+  edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));
+  const edge=edges[index],el=document.createElement('div');
+  el.className='edge-label-editing'; el.textContent=edge.label; el.contentEditable='true';
+  el.style.left=mx+'px'; el.style.top=my+'px';
+  canvas.appendChild(el);
+  inlineEdit(el,edge.label,value=>edge.label=value,()=>el.remove());
+}
+
+function clearMultiSelection(){multiNodes.clear();multiEdges.clear();multiSubgraphs.clear();}
+function clearSelection(){clearMultiSelection();selected=null;selectedEdge=null;selectedSubgraph=null;}
+function seedMultiSelection(){if(selected!==null&&!multiNodes.has(selected))multiNodes.add(selected);if(selectedEdge!==null&&!multiEdges.has(selectedEdge))multiEdges.add(selectedEdge);if(selectedSubgraph!==null&&!multiSubgraphs.has(selectedSubgraph))multiSubgraphs.add(selectedSubgraph);}
+function toggleMulti(set,key,setPrimary,first){
+  const adding=!set.has(key);
+  if(adding)set.add(key);else set.delete(key);
+  if(!multiNodes.size&&!multiEdges.size&&!multiSubgraphs.size)clearSelection();
+  else setPrimary(adding?key:first());
+  render();
+}
+function clearSelectionClasses(){nodesEl.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));edgesEl.querySelectorAll('.edge').forEach(e=>e.classList.remove('selected'));subgraphsEl.querySelectorAll('.subgraph').forEach(b=>b.classList.remove('selected'));}
+function inlineEdit(field,original,commit,cleanup){
+  field.contentEditable='true';field.classList.add('inline-editing');field.focus();
+  const selection=window.getSelection();selection?.selectAllChildren(field);
+  const finish=ok=>{
     if(!field.isContentEditable)return;
-    const value=field.textContent.trim(); field.contentEditable='false'; field.classList.remove('inline-editing');
-    if(commit&&value)node.label=value; else field.textContent=node.label;
+    const value=field.textContent.trim();field.contentEditable='false';field.classList.remove('inline-editing');
+    if(ok&&value)commit(value);else field.textContent=original;
+    cleanup?.();
     render();
   };
   field.onblur=()=>finish(true);
@@ -38,31 +66,13 @@ function startInlineEdit(event){
     if(keyEvent.key==='Enter'){keyEvent.preventDefault();finish(true);}
   };
 }
-
-function startEdgeLabelEdit(mx,my,index){
-  clearMultiSelection(); selected=null; selectedEdge=index;
-  nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));
-  edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));
-  const edge=edges[index],el=document.createElement('div');
-  el.className='edge-label-editing'; el.textContent=edge.label; el.contentEditable='true';
-  el.style.left=mx+'px'; el.style.top=my+'px';
-  canvas.appendChild(el); el.focus();
-  const selection=window.getSelection(); selection?.selectAllChildren(el);
-  const finish=commit=>{
-    if(!el.isContentEditable)return;
-    const value=el.textContent.trim(); el.contentEditable='false'; el.remove();
-    if(commit&&value)edge.label=value;
-    render();
-  };
-  el.onblur=()=>finish(true);
-  el.onkeydown=keyEvent=>{
-    if(keyEvent.key==='Escape'){keyEvent.preventDefault();finish(false);}
-    if(keyEvent.key==='Enter'){keyEvent.preventDefault();finish(true);}
-  };
+function selectionTargets(){
+  if(multiNodes.size||multiEdges.size||multiSubgraphs.size)return[...multiNodes].map(id=>({kind:'node',id})).concat([...multiEdges].map(index=>({kind:'edge',index})),[...multiSubgraphs].map(index=>({kind:'subgraph',index})));
+  if(selectedSubgraph!==null)return[{kind:'subgraph',index:selectedSubgraph}];
+  if(selectedEdge!==null)return[{kind:'edge',index:selectedEdge}];
+  if(selected!==null)return[{kind:'node',id:selected}];
+  return[];
 }
-
-function clearMultiSelection(){multiNodes.clear();multiEdges.clear();}
-function seedMultiSelection(){if(selected!==null&&!multiNodes.has(selected))multiNodes.add(selected);if(selectedEdge!==null&&!multiEdges.has(selectedEdge))multiEdges.add(selectedEdge);}
 function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
 function currentViewCenter(){ return {x:(canvasWrap.clientWidth-2*panX)/(2*zoom),y:(canvasWrap.clientHeight-2*panY)/(2*zoom)}; }
 function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
@@ -78,22 +88,25 @@ function startMarquee(event){
     const x=Math.round((ev.clientX-rect.left-panX)/zoom),y=Math.round((ev.clientY-rect.top-panY)/zoom);
     document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); el.remove();
     const shift=ev.shiftKey;
-    if(Math.abs(x-sx)<3&&Math.abs(y-sy)<3){if(!shift){clearMultiSelection();selected=null;selectedEdge=null;render();}return;}
-    const left=Math.min(sx,x),top=Math.min(sy,y),right=Math.max(sx,x),bottom=Math.max(sy,y),ids=[],edgeIndexes=[];
+    if(Math.abs(x-sx)<3&&Math.abs(y-sy)<3){if(!shift){clearSelection();render();}return;}
+    const left=Math.min(sx,x),top=Math.min(sy,y),right=Math.max(sx,x),bottom=Math.max(sy,y),ids=[],edgeIndexes=[],subgraphIndexes=[];
     nodes.forEach(n=>{if(n.x<right&&n.x+n.width>left&&n.y<bottom&&n.y+n.height>top)ids.push(n.id);});
     edges.forEach((edge,index)=>{
       const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
       const mx=(from.x+from.width/2+to.x+to.width/2)/2,my=(from.y+from.height/2+to.y+to.height/2)/2;
       if(mx>left&&mx<right&&my>top&&my<bottom)edgeIndexes.push(index);
     });
-    if(shift)seedMultiSelection();else clearMultiSelection();
+    subgraphs.forEach((group,index)=>{const b=group.bounds;if(b&&b.x<right&&b.x+b.width>left&&b.y<bottom&&b.y+b.height>top)subgraphIndexes.push(index);});
+    if(shift)seedMultiSelection();else clearSelection();
     ids.forEach(id=>multiNodes.add(id));
     edgeIndexes.forEach(index=>multiEdges.add(index));
+    subgraphIndexes.forEach(index=>multiSubgraphs.add(index));
     if(shift){
       if(selected===null&&multiNodes.size)selected=[...multiNodes][0];
       if(selectedEdge===null&&multiEdges.size)selectedEdge=[...multiEdges][0];
+      if(selectedSubgraph===null&&multiSubgraphs.size)selectedSubgraph=[...multiSubgraphs][0];
     }else{
-      selected=ids[0]||null; selectedEdge=edgeIndexes[0]||null;
+      selected=ids[0]||null; selectedEdge=edgeIndexes.length?edgeIndexes[0]:null; selectedSubgraph=subgraphIndexes.length?subgraphIndexes[0]:null;
     }
     render();
   };
@@ -130,23 +143,69 @@ canvasWrap.addEventListener('wheel',event=>{
 },{passive:false});
 
 function selectEdge(index,shift){
-  if(shift){
-    seedMultiSelection();
-    const adding=!multiEdges.has(index);
-    if(adding)multiEdges.add(index);else multiEdges.delete(index);
-    if(!multiNodes.size&&!multiEdges.size){selected=null;selectedEdge=null;}
-    else selectedEdge=adding?index:[...multiEdges][0]||null;
-    render(); return;
+  if(shift){seedMultiSelection();toggleMulti(multiEdges,index,v=>selectedEdge=v,()=>[...multiEdges][0]??null);return;}
+  clearSelection();selectedEdge=index;clearSelectionClasses();updateProperties();drawEdges();
+}
+function selectSubgraph(index,shift){
+  if(shift){seedMultiSelection();toggleMulti(multiSubgraphs,index,v=>selectedSubgraph=v,()=>[...multiSubgraphs][0]??null);return;}
+  clearSelection();selectedSubgraph=index;
+  clearSelectionClasses();
+  subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
+  updateProperties();
+}
+function startSubgraphDrag(e){
+  if(e.button!==0||spaceDown)return;
+  const index=+e.currentTarget.dataset.subgraph;
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+  const multi=multiSubgraphs.has(index);
+  if(!e.shiftKey&&!multi){
+    clearSelection();selectedSubgraph=index;
+    clearSelectionClasses();
+    subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
+    updateProperties();
   }
-  clearMultiSelection();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();drawEdges();
+  const ids=new Set();
+  [...multiSubgraphs].forEach(i=>subgraphs[i]?.members.forEach(m=>ids.add(m)));
+  if(multiSubgraphs.size||multiNodes.size)[...multiNodes].forEach(id=>ids.add(id));
+  if(!ids.size)subgraphs[index].members.forEach(m=>ids.add(m));
+  const origins=new Map([...ids].map(id=>{const m=nodeById(id);return m?[id,{x:m.x,y:m.y}]:null}).filter(Boolean));
+  const startX=e.clientX,startY=e.clientY;
+  const move=ev=>{
+    if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3)suppressClickToggle=true;
+    let dx=Math.round((ev.clientX-startX)/zoom),dy=Math.round((ev.clientY-startY)/zoom);
+    if(ev.shiftKey){dx=Math.round(dx/20)*20;dy=Math.round(dy/20)*20;}
+    origins.forEach((origin,id)=>{const m=nodeById(id);if(!m)return;m.x=Math.round(origin.x+dx);m.y=Math.round(origin.y+dy);const el=document.querySelector(`[data-id="${id}"]`);if(el){el.style.left=m.x+'px';el.style.top=m.y+'px';}});
+    positionSubgraphs();drawEdges();
+  };
+  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);setTimeout(()=>{suppressClickToggle=false;},0);};
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+function startSubgraphRename(event){
+  event.preventDefault();event.stopPropagation();
+  const index=+event.currentTarget.dataset.subgraph,group=subgraphs[index],field=event.currentTarget.querySelector('span');
+  clearSelection();selectedSubgraph=index;
+  clearSelectionClasses();
+  subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
+  inlineEdit(field,group.label,value=>group.label=value);
+}
+function openSubgraphMenu(event,index){
+  event.preventDefault();event.stopPropagation();hideNodeMenu();hideEdgeMenu();
+  clearSelection();selectedSubgraph=index;
+  clearSelectionClasses();
+  subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
+  updateProperties();
+  subgraphMenu.style.left=`${event.clientX}px`;subgraphMenu.style.top=`${event.clientY}px`;subgraphMenu.classList.add('open');
 }
 function positionSubgraphs(){
   subgraphs.forEach((group,index)=>{
-    const members=group.members.map(nodeById).filter(Boolean); if(!members.length)return;
+    const box=subgraphsEl.children[index]; if(!box)return;
+    const members=group.members.map(nodeById).filter(Boolean);
+    if(!members.length){ if(group.bounds)Object.assign(box.style,{left:`${group.bounds.x}px`,top:`${group.bounds.y}px`,width:`${group.bounds.width}px`,height:`${group.bounds.height}px`}); return; }
     const boxes=members.map(n=>document.querySelector(`[data-id="${n.id}"]`));
     const left=Math.min(...members.map(n=>n.x))-28, top=Math.min(...members.map(n=>n.y))-42;
     const right=Math.max(...members.map((n,i)=>n.x+(boxes[i]?.offsetWidth||132)))+28, bottom=Math.max(...members.map((n,i)=>n.y+(boxes[i]?.offsetHeight||48)))+28;
-    const box=subgraphsEl.children[index]; Object.assign(box.style,{left:`${left}px`,top:`${top}px`,width:`${right-left}px`,height:`${bottom-top}px`});
+    group.bounds={x:left,y:top,width:right-left,height:bottom-top};
+    Object.assign(box.style,{left:`${left}px`,top:`${top}px`,width:`${right-left}px`,height:`${bottom-top}px`});
   });
 }
 
@@ -173,23 +232,16 @@ function drawEdges(){
 function selectNode(e){
   const id=e.currentTarget.dataset.id;
   if(suppressClickToggle){suppressClickToggle=false;return;}
-  if(e.shiftKey){
-    seedMultiSelection();
-    const adding=!multiNodes.has(id);
-    if(adding)multiNodes.add(id);else multiNodes.delete(id);
-    if(!multiNodes.size&&!multiEdges.size){selected=null;selectedEdge=null;}
-    else selected=adding?id:[...multiNodes][0]||null;
-    render(); return;
-  }
-  clearMultiSelection();
+  if(e.shiftKey){seedMultiSelection();toggleMulti(multiNodes,id,v=>selected=v,()=>[...multiNodes][0]??null);return;}
+  clearSelection();
   if(connecting){
-    if(!source){ source=id; selected=id; selectedEdge=null; render(); return; }
+    if(!source){ source=id; selected=id; render(); return; }
     if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)) edges.push({from:source,to:id,label:''});
     source=null; connecting=false; document.querySelector('#connectBtn').classList.remove('active'); render(); return;
   }
-  selected=id; selectedEdge=null;
+  selected=id;
+  clearSelectionClasses();
   nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===id));
-  edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));
   updateProperties();
 }
 
@@ -198,8 +250,8 @@ function startDrag(e){
   e.currentTarget.setPointerCapture?.(e.pointerId);
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
   const group=multiNodes.has(id)?new Map([...multiNodes].map(id2=>{const m=nodeById(id2);return m?[id2,{x:m.x,y:m.y}]:null}).filter(Boolean)):null;
-  if(!group&&!e.shiftKey){clearMultiSelection();selected=id;selectedEdge=null;nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el));edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));}
-  else if(group){selected=id;selectedEdge=null;edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));}
+  if(!group&&!e.shiftKey){clearSelection();selected=id;clearSelectionClasses();nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el));}
+  else if(group){selected=id;selectedEdge=null;selectedSubgraph=null;edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.remove('selected'));}
   updateProperties();
   const move=ev=>{
     if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3)suppressClickToggle=true;
@@ -220,21 +272,24 @@ function startDrag(e){
 
 function updateProperties(){
   const n=nodeById(selected), label=document.querySelector('#labelInput'), shape=document.querySelector('#shapeInput'), del=document.querySelector('#deleteBtn');
-  document.querySelector('#selectedId').textContent=n?.id||'—'; label.disabled=shape.disabled=del.disabled=!n;
+  document.querySelector('#selectedId').textContent=selectedSubgraph!==null?(subgraphs[selectedSubgraph]?.label||'Subgraph'):n?.id||'—'; label.disabled=shape.disabled=!n; del.disabled=!n&&selectedSubgraph===null;
   if(n){ label.value=n.label; shape.value=n.shape; }
   syncCodeHighlight();
 }
 
 function syncCodeHighlight(){
   const lines=codeEditor.value.split('\n');
-  const targets=multiNodes.size||multiEdges.size
-    ?[...multiNodes].map(id=>({kind:'node',id})).concat([...multiEdges].map(index=>({kind:'edge',index})))
-    :selectedEdge!==null?[{kind:'edge',index:selectedEdge}]:selected!==null?[{kind:'node',id:selected}]:[];
+  const targets=selectionTargets();
   const indexes=[];
   targets.forEach(target=>{
     if(target.kind==='edge'){
       const e=edges[target.index]; if(!e)return;
       const pattern=new RegExp(`^\\s*${e.from}\\s+-->\\s*(?:\\|[^|]*\\|\\s*)?${e.to}\\s*(?:[({[]|$)`);
+      const index=lines.findIndex(line=>pattern.test(line));
+      if(index>=0)indexes.push(index);
+    }else if(target.kind==='subgraph'){
+      const g=subgraphs[target.index]; if(!g)return;
+      const pattern=new RegExp(`^\\s*subgraph\\s+${escRegex(g.label)}\\s*$`);
       const index=lines.findIndex(line=>pattern.test(line));
       if(index>=0)indexes.push(index);
     }else{
