@@ -19,7 +19,7 @@
       <button class="add-node" id="addNodeBtn"><span>＋</span> Add node <kbd>N</kbd></button>
       <button class="connect-toggle" id="connectBtn"><span>↗</span> Connect nodes <kbd>C</kbd></button>
 
-      <section class="properties" id="properties">
+      <section class="properties">
         <div class="section-label">Selected node <span id="selectedId">—</span></div>
         <label>Label<input id="labelInput" type="text" placeholder="Select a node" disabled /></label>
         <label>Shape<select id="shapeInput" disabled><option value="round">Rounded</option><option value="square">Square</option><option value="pill">Pill</option><option value="diamond">Diamond</option><option value="circle">Circle</option></select></label>
@@ -34,7 +34,7 @@
       <div class="canvas-toolbar"><div class="breadcrumbs"><span>Untitled diagram</span><span class="slash">/</span><span class="muted">Flowchart</span></div><div class="toolbar-actions"><button class="relayout" id="relayoutBtn" title="Re-run automatic layout">Relayout</button><div class="zoom"><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div></div></div>
       <div class="canvas-wrap" id="canvasWrap">
         <div class="canvas" id="canvas"><svg id="edges" aria-hidden="true"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#9aa0ad" /></marker></defs></svg><div id="subgraphs"></div><div id="nodes"></div><div class="empty-state" id="emptyState"><span>✦</span><strong>Your canvas is ready</strong><small>Add a node to start sketching</small></div></div>
-        <div class="canvas-help"><span>Drag to move</span><span>•</span><span>Click edge + Delete to remove</span><span>•</span><span id="modeHelp">C to connect</span></div>
+        <div class="canvas-help"><span>Drag to move</span><span>•</span><span>Click edge + Delete to remove</span><span>•</span><span>C to connect</span></div>
       </div>
       <div class="splitter" id="splitter" role="separator" aria-label="Resize Mermaid code panel"><span></span></div>
       <div class="code-panel"><div class="code-header"><div><span class="code-icon">&lt;/&gt;</span><strong>Mermaid code</strong><span class="live">● Live</span></div><button id="copyBtn">Copy code</button></div><div class="code-wrap"><div class="code-highlight" id="codeHighlight" aria-hidden="true"></div><textarea id="codeEditor" wrap="off" spellcheck="false" aria-label="Mermaid code"></textarea></div></div>
