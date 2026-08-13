@@ -24,3 +24,21 @@ const features = diagram.subgraphs.find(group => group.label === 'Features');
 assert(drawUi.bounds.width > 0 && drawUi.bounds.height > 0);
 assert(features.bounds.width > 0 && features.bounds.height > 0);
 console.log('complex Mermaid diagram parses and lays out correctly');
+
+const extraSource = `flowchart LR
+    __subgraph_0
+    subgraph Group
+        bare
+        diamond{{decide}}
+        bare --> diamond
+    end
+    diamond --> __subgraph_0`;
+const extra = layoutDiagram(parseDiagram(extraSource));
+assert(extra.nodes.some(node => node.id === 'bare'), 'bare node lines create nodes');
+assert.equal(extra.subgraphs[0].members.length, 2);
+const diamond = extra.nodes.find(node => node.id === 'diamond');
+assert(diamond.width === diamond.height, 'diamond layout is square');
+const collision = extra.nodes.find(node => node.id === '__subgraph_0');
+assert(collision.x >= 0 && collision.y >= 0, 'generated subgraph ids cannot collide with user node ids');
+assert(extra.nodes.every(node => Number.isFinite(node.x) && Number.isFinite(node.y)));
+console.log('bare nodes, diamond sizing, and subgraph id collision safety verified');

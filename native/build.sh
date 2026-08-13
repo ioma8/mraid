@@ -26,7 +26,7 @@ cp "$ROOT/vendor/dagre.min.js" "$ROOT/vendor/DAGRE-LICENSE" "$ROOT/docs/vendor/"
   printf 'let embeddedJS = #"""\n'
   printf 'eval(atob("'
   base64 -i "$ROOT/vendor/dagre.min.js" | tr -d '\n'
-  printf '"));\n'
+  printf '")+"\\n;globalThis.dagre=dagre");\n'
   for file in state.js mermaid.js canvas.js ui.js main.js; do cat "$ROOT/$file"; printf '\n'; done
   printf '"""#\n'
 } >> "$GENERATED"
