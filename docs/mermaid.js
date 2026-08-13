@@ -26,6 +26,6 @@ function layoutDiagram(diagram,center){center=center||{x:650,y:450};
   }
   return diagram;
 }
-function applyMermaid(source){const diagram=layoutDiagram(parseDiagram(source),currentViewCenter());if(!diagram.nodes.length)return;direction=diagram.direction;nodes=diagram.nodes;edges=diagram.edges;subgraphs=diagram.subgraphs;selected=null;selectedEdge=null;render(false);}
+function applyMermaid(source){const diagram=layoutDiagram(parseDiagram(source),currentViewCenter());if(!diagram.nodes.length)return;direction=diagram.direction;nodes=diagram.nodes;edges=diagram.edges;subgraphs=diagram.subgraphs;selected=null;selectedEdge=null;clearMultiSelection();render(false);}
 function toMermaid(){const lines=nodes.map(n=>{const body=n.shape==='diamond'?`{{${n.label}}}`:n.shape==='pill'?`([${n.label}])`:n.shape==='square'?`[${n.label}]`:n.shape==='circle'?`((${n.label}))`:`(${n.label})`;return`    ${n.id}${body}`;}),groups=subgraphs.map(group=>`    subgraph ${group.label}\n${group.members.map(id=>`        ${id}`).join('\n')}\n    end`),links=edges.map(e=>`    ${e.from} -->${e.label?`|${e.label}|`:''} ${e.to}`);return`flowchart ${direction}\n${lines.concat(groups,links).join('\n')}`;}
 if(typeof module!=='undefined')module.exports={parseDiagram,layoutDiagram};

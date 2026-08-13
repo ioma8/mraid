@@ -3,13 +3,13 @@ function nativeMessage(message){
 }
 
 document.querySelector('#addNodeBtn').onclick=()=>{
-  const id=String.fromCharCode(65+nodes.length); nodes.push({id,label:'New node',x:100+(nodes.length%3)*220,y:100+(nodes.length%3)*110,shape:'round'}); selected=id; selectedEdge=null; render();
+  const id=String.fromCharCode(65+nodes.length); nodes.push({id,label:'New node',x:100+(nodes.length%3)*220,y:100+(nodes.length%3)*110,shape:'round'}); clearMultiSelection(); selected=id; selectedEdge=null; render();
 };
 function nextNodeId(){let i=0;while(nodes.some(n=>n.id===String.fromCharCode(65+i)))i++;if(i<26)return String.fromCharCode(65+i);let suffix=1;while(nodes.some(n=>n.id===`N${suffix}`))suffix++;return `N${suffix}`;}
 function hideNodeMenu(){nodeMenu.classList.remove('open');}
 function hideEdgeMenu(){edgeMenu.classList.remove('open');}
-function duplicateSelected(){const original=nodeById(selected);if(!original)return;const id=nextNodeId(),copy={...original,id,label:`${original.label} copy`};nodes.push(copy);edges.push(...edges.filter(edge=>edge.to===original.id).map(edge=>({...edge,to:id})));subgraphs.forEach(group=>{if(group.members.includes(original.id))group.members.push(id);});const laidOut=layoutDiagram({direction,nodes,edges,subgraphs},currentViewCenter());nodes=laidOut.nodes;edges=laidOut.edges;subgraphs=laidOut.subgraphs;selected=id;selectedEdge=null;hideNodeMenu();render();}
-function deleteSelected(){hideNodeMenu();if(selectedEdge!==null){edges.splice(selectedEdge,1);selectedEdge=null;render();return;}if(selected){nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(x=>x.from!==selected&&x.to!==selected);subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>id!==selected)}));selected=null;render();}}
+function duplicateSelected(){const original=nodeById(selected);if(!original)return;const id=nextNodeId(),copy={...original,id,label:`${original.label} copy`};nodes.push(copy);edges.push(...edges.filter(edge=>edge.to===original.id).map(edge=>({...edge,to:id})));subgraphs.forEach(group=>{if(group.members.includes(original.id))group.members.push(id);});const laidOut=layoutDiagram({direction,nodes,edges,subgraphs},currentViewCenter());nodes=laidOut.nodes;edges=laidOut.edges;subgraphs=laidOut.subgraphs;clearMultiSelection();selected=id;selectedEdge=null;hideNodeMenu();render();}
+function deleteSelected(){hideNodeMenu();if(multiNodes.size||multiEdges.size){const ids=new Set(multiNodes);edges=edges.filter((e,i)=>!multiEdges.has(i)&&!ids.has(e.from)&&!ids.has(e.to));nodes=nodes.filter(n=>!ids.has(n.id));subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>!ids.has(id))}));clearMultiSelection();selected=null;selectedEdge=null;render();return;}if(selectedEdge!==null){edges.splice(selectedEdge,1);selectedEdge=null;render();return;}if(selected){nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(x=>x.from!==selected&&x.to!==selected);subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>id!==selected)}));selected=null;render();}}
 nodeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>button.dataset.action==='duplicate'?duplicateSelected():deleteSelected());
 edgeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{
   if(selectedEdge===null)return;

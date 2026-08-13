@@ -1,5 +1,5 @@
 function render(syncCode=true){
-  nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.width||132}px${n.shape==='diamond'||n.shape==='circle'?`;height:${n.height||n.width||132}px`:''}"><span>${esc(n.label)}</span></div>`).join('');
+  nodesEl.innerHTML = nodes.map(n=>`<div class="node ${n.shape} ${selected===n.id||multiNodes.has(n.id)?'selected':''} ${source===n.id?'connect-source':''}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.width||132}px${n.shape==='diamond'||n.shape==='circle'?`;height:${n.height||n.width||132}px`:''}"><span>${esc(n.label)}</span></div>`).join('');
   subgraphsEl.innerHTML = subgraphs.map((group,index)=>`<div class="subgraph" data-subgraph="${index}"><span>${esc(group.label)}</span></div>`).join('');
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); el.addEventListener('contextmenu',openNodeMenu); });
@@ -7,12 +7,12 @@ function render(syncCode=true){
 }
 
 function openNodeMenu(event){
-  event.preventDefault(); event.stopPropagation(); hideEdgeMenu(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===selected)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
+  event.preventDefault(); event.stopPropagation(); hideEdgeMenu(); clearMultiSelection(); window.getSelection()?.removeAllRanges(); selected=event.currentTarget.dataset.id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===selected)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
   nodeMenu.style.left=`${event.clientX}px`; nodeMenu.style.top=`${event.clientY}px`; nodeMenu.classList.add('open');
 }
 
 function openEdgeMenu(event,index){
-  event.preventDefault(); event.stopPropagation(); hideNodeMenu();
+  event.preventDefault(); event.stopPropagation(); hideNodeMenu(); clearMultiSelection();
   selected=null; selectedEdge=index;
   nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));
   edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.toggle('selected',+edge.dataset.edge===index));
@@ -24,7 +24,7 @@ function openEdgeMenu(event,index){
 function startInlineEdit(event){
   event.preventDefault(); event.stopPropagation();
   const node=nodeById(event.currentTarget.dataset.id),field=event.currentTarget.querySelector('span');
-  selected=node.id; selectedEdge=null; edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); field.contentEditable='true'; field.classList.add('inline-editing'); field.focus();
+  clearMultiSelection(); selected=node.id; selectedEdge=null; edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); field.contentEditable='true'; field.classList.add('inline-editing'); field.focus();
   const selection=window.getSelection(); selection?.selectAllChildren(field);
   const finish=commit=>{
     if(!field.isContentEditable)return;
@@ -40,7 +40,7 @@ function startInlineEdit(event){
 }
 
 function startEdgeLabelEdit(mx,my,index){
-  selected=null; selectedEdge=index;
+  clearMultiSelection(); selected=null; selectedEdge=index;
   nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));
   edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));
   const edge=edges[index],el=document.createElement('div');
@@ -61,9 +61,35 @@ function startEdgeLabelEdit(mx,my,index){
   };
 }
 
+function clearMultiSelection(){multiNodes.clear();multiEdges.clear();}
+function seedMultiSelection(){if(selected!==null&&!multiNodes.has(selected))multiNodes.add(selected);if(selectedEdge!==null&&!multiEdges.has(selectedEdge))multiEdges.add(selectedEdge);}
 function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
 function currentViewCenter(){ return {x:(canvasWrap.clientWidth-2*panX)/(2*zoom),y:(canvasWrap.clientHeight-2*panY)/(2*zoom)}; }
 function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
+function startMarquee(event){
+  const rect=canvasWrap.getBoundingClientRect(),sx=Math.round((event.clientX-rect.left-panX)/zoom),sy=Math.round((event.clientY-rect.top-panY)/zoom);
+  const el=document.createElement('div'); el.className='marquee'; el.style.left=sx+'px'; el.style.top=sy+'px'; canvas.appendChild(el);
+  const move=ev=>{
+    const x=Math.round((ev.clientX-rect.left-panX)/zoom),y=Math.round((ev.clientY-rect.top-panY)/zoom);
+    Object.assign(el.style,{left:Math.min(sx,x)+'px',top:Math.min(sy,y)+'px',width:Math.abs(x-sx)+'px',height:Math.abs(y-sy)+'px'});
+  };
+  const up=ev=>{
+    const x=Math.round((ev.clientX-rect.left-panX)/zoom),y=Math.round((ev.clientY-rect.top-panY)/zoom);
+    document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); el.remove();
+    if(Math.abs(x-sx)<3&&Math.abs(y-sy)<3){clearMultiSelection();selected=null;selectedEdge=null;render();return;}
+    const left=Math.min(sx,x),top=Math.min(sy,y),right=Math.max(sx,x),bottom=Math.max(sy,y),ids=[];
+    nodes.forEach(n=>{if(n.x<right&&n.x+n.width>left&&n.y<bottom&&n.y+n.height>top)ids.push(n.id);});
+    clearMultiSelection();
+    ids.forEach(id=>multiNodes.add(id));
+    edges.forEach((edge,index)=>{
+      const from=nodeById(edge.from),to=nodeById(edge.to); if(!from||!to)return;
+      const mx=(from.x+from.width/2+to.x+to.width/2)/2,my=(from.y+from.height/2+to.y+to.height/2)/2;
+      if(mx>left&&mx<right&&my>top&&my<bottom)multiEdges.add(index);
+    });
+    selected=ids[0]||null; selectedEdge=multiEdges.size?[...multiEdges][0]:null; render();
+  };
+  document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+}
 
 splitter.addEventListener('pointerdown',event=>{
   event.preventDefault(); splitter.setPointerCapture(event.pointerId); splitter.classList.add('dragging');
@@ -74,12 +100,15 @@ splitter.addEventListener('pointerdown',event=>{
 });
 
 canvasWrap.addEventListener('pointerdown',event=>{
-  if(!spaceDown&&event.button!==1)return;
-  const startX=event.clientX,startY=event.clientY,originX=panX,originY=panY;
-  canvasWrap.setPointerCapture(event.pointerId); canvasWrap.classList.add('panning');
-  const move=moveEvent=>{panX=originX+moveEvent.clientX-startX;panY=originY+moveEvent.clientY-startY;applyViewport();};
-  const up=()=>{canvasWrap.classList.remove('panning');canvasWrap.removeEventListener('pointermove',move);canvasWrap.removeEventListener('pointerup',up);};
-  canvasWrap.addEventListener('pointermove',move);canvasWrap.addEventListener('pointerup',up);
+  if(spaceDown||event.button===1){
+    const startX=event.clientX,startY=event.clientY,originX=panX,originY=panY;
+    canvasWrap.setPointerCapture(event.pointerId); canvasWrap.classList.add('panning');
+    const move=moveEvent=>{panX=originX+moveEvent.clientX-startX;panY=originY+moveEvent.clientY-startY;applyViewport();};
+    const up=()=>{canvasWrap.classList.remove('panning');canvasWrap.removeEventListener('pointermove',move);canvasWrap.removeEventListener('pointerup',up);};
+    canvasWrap.addEventListener('pointermove',move);canvasWrap.addEventListener('pointerup',up);
+    return;
+  }
+  if(event.button===0&&!event.target.closest('.node,.edge,.edge-label,.subgraph'))startMarquee(event);
 });
 canvasWrap.addEventListener('wheel',event=>{
   const altPressed=event.altKey||event.getModifierState?.('Alt');
@@ -112,16 +141,48 @@ function drawEdges(){
     if(vertical){y1+=down?a.offsetHeight/2:-a.offsetHeight/2;y2+=down?-b.offsetHeight/2:b.offsetHeight/2;}else{x1+=right?a.offsetWidth/2:-a.offsetWidth/2;x2+=right?-b.offsetWidth/2:b.offsetWidth/2;}
     const mx=(x1+x2)/2,my=(y1+y2)/2;
     if(b.classList.contains('diamond')){const v=b.offsetWidth*(Math.SQRT1_2-.5);if(vertical)y2+=down?-v:v;else x2+=right?-v:v;}
-    const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index?'selected':''}`); path.dataset.edge=index;
-    path.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();drawEdges();});
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index||multiEdges.has(index)?'selected':''}`); path.dataset.edge=index;
+    path.addEventListener('click',event=>{
+      event.stopPropagation();
+      if(event.shiftKey){
+        seedMultiSelection();
+        const adding=!multiEdges.has(index);
+        if(adding)multiEdges.add(index);else multiEdges.delete(index);
+        if(!multiNodes.size&&!multiEdges.size){selected=null;selectedEdge=null;}
+        else selectedEdge=adding?index:[...multiEdges][0]||null;
+        render(); return;
+      }
+      clearMultiSelection();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();drawEdges();
+    });
     path.addEventListener('contextmenu',event=>openEdgeMenu(event,index));
     path.setAttribute('d',vertical?`M ${x1} ${y1} C ${x1} ${y1+bend}, ${x2} ${y2-bend}, ${x2} ${y2}`:`M ${x1} ${y1} C ${x1+bend} ${y1}, ${x2-bend} ${y2}, ${x2} ${y2}`); edgesEl.appendChild(path);
-    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',mx); text.setAttribute('y',my-6); text.textContent=edge.label; text.dataset.mx=mx; text.dataset.my=my-6; text.addEventListener('click',event=>{event.stopPropagation();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
+    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',mx); text.setAttribute('y',my-6); text.textContent=edge.label; text.dataset.mx=mx; text.dataset.my=my-6; text.addEventListener('click',event=>{
+  event.stopPropagation();
+  if(event.shiftKey){
+    seedMultiSelection();
+    const adding=!multiEdges.has(index);
+    if(adding)multiEdges.add(index);else multiEdges.delete(index);
+    if(!multiNodes.size&&!multiEdges.size){selected=null;selectedEdge=null;}
+    else selectedEdge=adding?index:[...multiEdges][0]||null;
+    render(); return;
+  }
+  clearMultiSelection();selectedEdge=index;selected=null;nodesEl.querySelectorAll('.node').forEach(node=>node.classList.remove('selected'));updateProperties();edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));
+}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
   });
 }
 
 function selectNode(e){
   const id=e.currentTarget.dataset.id;
+  if(suppressClickToggle){suppressClickToggle=false;return;}
+  if(e.shiftKey){
+    seedMultiSelection();
+    const adding=!multiNodes.has(id);
+    if(adding)multiNodes.add(id);else multiNodes.delete(id);
+    if(!multiNodes.size&&!multiEdges.size){selected=null;selectedEdge=null;}
+    else selected=adding?id:[...multiNodes][0]||null;
+    render(); return;
+  }
+  clearMultiSelection();
   if(connecting){
     if(!source){ source=id; selected=id; selectedEdge=null; render(); return; }
     if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)) edges.push({from:source,to:id,label:''});
@@ -135,15 +196,26 @@ function selectNode(e){
 
 function startDrag(e){
   if(e.button!==0||spaceDown||e.currentTarget.querySelector('[contenteditable="true"]'))return;
+  e.currentTarget.setPointerCapture?.(e.pointerId);
   const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
-  selected=id; selectedEdge=null; nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el)); edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected')); updateProperties();
+  const group=multiNodes.has(id)?new Map([...multiNodes].map(id2=>{const m=nodeById(id2);return m?[id2,{x:m.x,y:m.y}]:null}).filter(Boolean)):null;
+  if(!group&&!e.shiftKey){clearMultiSelection();selected=id;selectedEdge=null;nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el));edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));}
+  else if(group){selected=id;selectedEdge=null;edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));}
+  updateProperties();
   const move=ev=>{
+    if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3)suppressClickToggle=true;
     let x=Math.round(ox+(ev.clientX-startX)/zoom);
     let y=Math.round(oy+(ev.clientY-startY)/zoom);
     if(ev.shiftKey){ x=Math.round(x/20)*20; y=Math.round(y/20)*20; }
-    n.x=x; n.y=y; el.style.left=n.x+'px';el.style.top=n.y+'px';drawEdges();positionSubgraphs();
+    const dx=x-ox,dy=y-oy;
+    if(group&&group.size>1){
+      group.forEach((origin,id2)=>{const m=nodeById(id2);if(!m)return;m.x=Math.round(origin.x+dx);m.y=Math.round(origin.y+dy);const el2=document.querySelector(`[data-id="${id2}"]`);if(el2){el2.style.left=m.x+'px';el2.style.top=m.y+'px';}});
+    }else{
+      n.x=x; n.y=y; el.style.left=n.x+'px';el.style.top=n.y+'px';
+    }
+    drawEdges();positionSubgraphs();
   };
-  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);};
+  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);setTimeout(()=>{suppressClickToggle=false;},0);};
   document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
 }
 
@@ -156,16 +228,24 @@ function updateProperties(){
 
 function syncCodeHighlight(){
   const lines=codeEditor.value.split('\n');
-  let index=-1;
-  if(selectedEdge!==null&&edges[selectedEdge]){
-    const e=edges[selectedEdge],pattern=new RegExp(`^\\s*${e.from}\\s+-->\\s*(?:\\|[^|]*\\|\\s*)?${e.to}\\s*(?:[({[]|$)`);
-    index=lines.findIndex(line=>pattern.test(line));
-  } else if(selected!==null){
-    const pattern=new RegExp(`^\\s*${selected}\\s*(?:[({[]|$)`);
-    index=lines.findIndex(line=>pattern.test(line));
-  }
+  const targets=multiNodes.size||multiEdges.size
+    ?[...multiNodes].map(id=>({kind:'node',id})).concat([...multiEdges].map(index=>({kind:'edge',index})))
+    :selectedEdge!==null?[{kind:'edge',index:selectedEdge}]:selected!==null?[{kind:'node',id:selected}]:[];
+  const indexes=[];
+  targets.forEach(target=>{
+    if(target.kind==='edge'){
+      const e=edges[target.index]; if(!e)return;
+      const pattern=new RegExp(`^\\s*${e.from}\\s+-->\\s*(?:\\|[^|]*\\|\\s*)?${e.to}\\s*(?:[({[]|$)`);
+      const index=lines.findIndex(line=>pattern.test(line));
+      if(index>=0)indexes.push(index);
+    }else{
+      const pattern=new RegExp(`^\\s*${target.id}\\s*(?:[({[]|$)`);
+      const index=lines.findIndex(line=>pattern.test(line));
+      if(index>=0)indexes.push(index);
+    }
+  });
   codeHighlight.innerHTML='';
-  if(index>=0){const bar=document.createElement('div');bar.className='code-highlight-line';bar.style.top=(10+index*17)+'px';codeHighlight.appendChild(bar);}
+  [...new Set(indexes)].forEach(index=>{const bar=document.createElement('div');bar.className='code-highlight-line';bar.style.top=(10+index*17)+'px';codeHighlight.appendChild(bar);});
   applyHighlightTransform();
 }
 

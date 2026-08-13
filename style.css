@@ -16,3 +16,4 @@ html,body{user-select:none;-webkit-user-select:none}input,textarea,select,[conte
 .code-highlight-line{height:17px}
 .node.circle{border-radius:50%}
 .toolbar-actions{display:flex;align-items:center;gap:12px}.relayout{height:25px;padding:0 11px;border:1px solid var(--line);border-radius:5px;background:#fff;color:#787e89;font-size:12px;font-weight:600;cursor:pointer}.relayout:hover{color:var(--purple);border-color:var(--purple)}
+.marquee{position:absolute;border:1px solid var(--purple);background:rgba(112,89,232,.12);pointer-events:none;z-index:3}
