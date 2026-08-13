@@ -9,6 +9,7 @@ const emptyState = document.querySelector('#emptyState');
 const nodeMenu = document.querySelector('#nodeMenu');
 const edgeMenu = document.querySelector('#edgeMenu');
 const subgraphMenu = document.querySelector('#subgraphMenu');
+const canvasMenu = document.querySelector('#canvasMenu');
 const splitter = document.querySelector('#splitter');
 const codePanel = document.querySelector('.code-panel');
 

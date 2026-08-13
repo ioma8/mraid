@@ -17,6 +17,7 @@
       <div class="side-heading"><div><p class="eyebrow">Workspace</p><h1>Flowchart editor</h1></div><span class="status-dot" title="Saved locally"></span></div>
       <p class="hint">Build your diagram visually. Click a node to edit it, or drag to reposition.</p>
       <button class="add-node" id="addNodeBtn"><span>＋</span> Add node <kbd>N</kbd></button>
+      <button class="add-node" id="addSubgraphBtn"><span>▦</span> Add subgraph</button>
       <button class="connect-toggle" id="connectBtn"><span>↗</span> Connect nodes <kbd>C</kbd></button>
 
       <section class="properties">
@@ -40,9 +41,10 @@
       <div class="code-panel"><div class="code-header"><div><span class="code-icon">&lt;/&gt;</span><strong>Mermaid code</strong><span class="live">● Live</span></div><button id="copyBtn">Copy code</button></div><div class="code-wrap"><div class="code-highlight" id="codeHighlight" aria-hidden="true"></div><textarea id="codeEditor" wrap="off" spellcheck="false" aria-label="Mermaid code"></textarea></div></div>
     </section>
   </main>
-  <div class="node-menu" id="nodeMenu"><button data-action="duplicate">Duplicate <kbd>⌘J</kbd></button><button data-action="delete">Delete <kbd>⌫</kbd></button></div>
+  <div class="node-menu" id="nodeMenu"><button data-action="group">Group into subgraph</button><button data-action="duplicate">Duplicate <kbd>⌘J</kbd></button><button data-action="delete">Delete <kbd>⌫</kbd></button></div>
   <div class="node-menu" id="edgeMenu"><button data-action="remove-connection">Remove connection <kbd>⌫</kbd></button><button data-action="add-label">Add label</button><button data-action="remove-label">Remove label</button></div>
-  <div class="node-menu" id="subgraphMenu"><button data-action="delete">Delete subgraph <kbd>⌫</kbd></button></div>
+  <div class="node-menu" id="canvasMenu"><button data-action="add-subgraph">Add subgraph</button><button data-action="add-node">Add node</button></div>
+  <div class="node-menu" id="subgraphMenu"><button data-action="add-node">Add node to subgraph</button><button data-action="delete">Remove subgraph <kbd>⌫</kbd></button></div>
   <script src="vendor/dagre.min.js"></script>
   <script src="state.js"></script>
   <script src="mermaid.js"></script>
