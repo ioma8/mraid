@@ -25,7 +25,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         NSApp.mainMenu = mainMenu
 
         let configuration = WKWebViewConfiguration()
-        configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         configuration.userContentController.add(self, name: "native")
         let css = "<style>\(embeddedCSS)</style>"
         configuration.userContentController.addUserScript(WKUserScript(
@@ -47,7 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         window.center()
         window.contentView = webView
         window.makeKeyAndOrderFront(nil)
-        webView.loadHTMLString(embeddedHTML, baseURL: nil)
+        // a file baseURL gives the page a real origin so localStorage (autosave) works
+        webView.loadHTMLString(embeddedHTML, baseURL: URL(fileURLWithPath: NSHomeDirectory()))
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

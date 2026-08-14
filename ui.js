@@ -34,7 +34,7 @@ labelInput.oninput=e=>{const n=nodeById(selected);if(n){if(n.id!==labelEditTarge
 labelInput.addEventListener('blur',()=>{labelEditTarget=null;});
 document.querySelector('#shapeInput').onchange=e=>{const n=nodeById(selected);if(n){record();n.shape=e.target.value;render();}};
 document.querySelector('#deleteBtn').onclick=deleteSelected;
-document.querySelector('#resetBtn').onclick=()=>{if(confirm('Reset this diagram?')) location.reload();};
+document.querySelector('#resetBtn').onclick=()=>{if(confirm('Reset this diagram?')){storageRemove();location.reload();}};
 document.querySelector('#copyBtn').onclick=()=>{nativeMessage({type:'copy',text:codeEditor.value});navigator.clipboard?.writeText(codeEditor.value);};
 document.querySelector('#downloadBtn').onclick=()=>{nativeMessage({type:'save',name:'diagram.mmd',text:codeEditor.value});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([codeEditor.value],{type:'text/plain'}));a.download='diagram.mmd';a.click();};
 codeEditor.oninput=()=>historyCodeEdit(()=>applyMermaid(codeEditor.value));
@@ -42,5 +42,8 @@ codeEditor.onscroll=applyHighlightTransform;
 document.querySelector('#zoomIn').onclick=()=>setZoom(zoom+.1); document.querySelector('#zoomOut').onclick=()=>setZoom(zoom-.1);
 document.querySelector('#relayoutBtn').onclick=()=>recordIfChanged(relayout);
 document.querySelector('#undoBtn').onclick=undo; document.querySelector('#redoBtn').onclick=redo;
-document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select,[contenteditable="true"]'))return;const mod=e.metaKey||e.ctrlKey;if(e.code==='Space'){spaceDown=true;e.preventDefault();}if(mod&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}if(mod&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(mod&&e.key.toLowerCase()==='j'){e.preventDefault();duplicateSelected();return;}if(!mod&&!e.altKey&&e.key.toLowerCase()==='n')document.querySelector('#addNodeBtn').click();if(!mod&&!e.altKey&&e.key.toLowerCase()==='c')document.querySelector('#connectBtn').click();if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSelected();}});
+document.addEventListener('keydown',e=>{const mod=e.metaKey||e.ctrlKey;if(e.target===codeEditor&&mod&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();(e.shiftKey||e.key.toLowerCase()==='y')?redo():undo();return;}if(e.target.closest('input,textarea,select,[contenteditable="true"]'))return;if(e.code==='Space'){spaceDown=true;e.preventDefault();}if(mod&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}if(mod&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(mod&&e.key.toLowerCase()==='j'){e.preventDefault();duplicateSelected();return;}if(!mod&&!e.altKey&&e.key.toLowerCase()==='n')document.querySelector('#addNodeBtn').click();if(!mod&&!e.altKey&&e.key.toLowerCase()==='c')document.querySelector('#connectBtn').click();if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();deleteSelected();}});
 document.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false;});
+
+// boot: restore the autosaved diagram, or render the starter
+const saved=storageGet();if(saved!==null){codeEditor.value=saved;applyMermaid(saved);}else relayout();

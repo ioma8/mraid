@@ -16,7 +16,10 @@ function makeEl() {
     contentEditable: 'false', isContentEditable: false, offsetWidth: 0, offsetHeight: 0
   };
 }
+const dagreContext = {structuredClone};
+vm.runInNewContext(fs.readFileSync(__dirname + '/../vendor/dagre.min.js', 'utf8'), dagreContext);
 const ctx = {
+  dagre: dagreContext.dagre,
   setTimeout, clearTimeout, requestAnimationFrame: () => {},
   window: {}, navigator: {},
   document: {
@@ -58,4 +61,36 @@ ctx.undo();
 assert.deepEqual(pos(), [100, 100], 'undo after a click must still revert the drag');
 ctx.redo();
 assert.deepEqual(pos(), [160, 140]);
-console.log('history: node drags record one undo step on first real move, and plain clicks record nothing');
+
+// dragging out and back to the origin leaves no dead undo entry: undo still reverts the earlier drag
+ctx.startDrag({ button: 0, currentTarget: nodeEl, pointerId: 3, clientX: 400, clientY: 400, shiftKey: false });
+docHandlers.pointermove({ clientX: 460, clientY: 440, shiftKey: false });
+docHandlers.pointermove({ clientX: 400, clientY: 400, shiftKey: false });
+docHandlers.pointerup({ clientX: 400, clientY: 400, shiftKey: false });
+assert.deepEqual(pos(), [160, 140], 'a drag that returns to the origin must not move the node');
+ctx.undo();
+assert.deepEqual(pos(), [100, 100], 'undo after an out-and-back drag must still revert the earlier drag, not a dead entry');
+ctx.redo();
+assert.deepEqual(pos(), [160, 140]);
+
+// subgraph drags drop dead undo entries the same way: out-and-back records nothing, a real move records one step
+vm.runInContext('undoStack=[];redoStack=[];nodes=[{id:"A",label:"A",x:0,y:0,width:100,height:40}];edges=[];subgraphs=[{label:"G",members:[],bounds:{x:0,y:0,width:200,height:200}}];direction="LR";', ctx);
+const subEl = makeEl();
+subEl.dataset.subgraph = '0';
+const bounds = () => vm.runInContext('subgraphs[0].bounds', ctx);
+ctx.startSubgraphDrag({ button: 0, currentTarget: subEl, pointerId: 5, clientX: 500, clientY: 500, shiftKey: false });
+docHandlers.pointermove({ clientX: 560, clientY: 540, shiftKey: false });
+docHandlers.pointermove({ clientX: 500, clientY: 500, shiftKey: false });
+docHandlers.pointerup({ clientX: 500, clientY: 500, shiftKey: false });
+assert.deepEqual(bounds(), { x: 0, y: 0, width: 200, height: 200 }, 'a subgraph dragged out and back must return to its origin');
+assert.equal(vm.runInContext('undoStack.length', ctx), 0, 'an out-and-back subgraph drag must record nothing');
+ctx.undo();
+assert.deepEqual(bounds(), { x: 0, y: 0, width: 200, height: 200 }, 'undo after an out-and-back subgraph drag must be a no-op');
+ctx.startSubgraphDrag({ button: 0, currentTarget: subEl, pointerId: 6, clientX: 500, clientY: 500, shiftKey: false });
+docHandlers.pointermove({ clientX: 560, clientY: 540, shiftKey: false });
+docHandlers.pointerup({ clientX: 560, clientY: 540, shiftKey: false });
+assert.deepEqual(bounds(), { x: 60, y: 40, width: 200, height: 200 }, 'a real subgraph move must move the bounds');
+assert.equal(vm.runInContext('undoStack.length', ctx), 1, 'a real subgraph move must record one step');
+ctx.undo();
+assert.deepEqual(bounds(), { x: 0, y: 0, width: 200, height: 200 }, 'undo must revert a real subgraph move');
+console.log('history: node and subgraph drags record one undo step on first real move; plain clicks and out-and-back drags record nothing');

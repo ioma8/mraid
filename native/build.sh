@@ -21,7 +21,7 @@ asset embeddedCSS "$ROOT/style.css"
   printf 'eval(atob("'
   base64 -i "$ROOT/vendor/dagre.min.js" | tr -d '\n'
   printf '")+"\\n;globalThis.dagre=dagre");\n'
-  for file in state.js history.js mermaid.js canvas.js ui.js main.js; do cat "$ROOT/$file"; printf '\n'; done
+  for file in state.js history.js mermaid.js canvas.js ui.js; do cat "$ROOT/$file"; printf '\n'; done
   printf '"""#\n'
 } >> "$GENERATED"
 

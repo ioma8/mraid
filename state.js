@@ -27,3 +27,7 @@ let selected = null, selectedEdge = null, selectedSubgraph = null, connecting = 
 function nodeById(id){ return nodes.find(n=>n.id===id); }
 function esc(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
 function escRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+const STORAGE_KEY='mermaid-canvas';
+function storageGet(){try{return localStorage.getItem(STORAGE_KEY)}catch(e){return null}}
+function storageSet(value){try{localStorage.setItem(STORAGE_KEY,value)}catch(e){}}
+function storageRemove(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}

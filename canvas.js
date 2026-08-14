@@ -4,14 +4,14 @@ function render(syncCode=true){
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); el.addEventListener('contextmenu',openNodeMenu); });
   subgraphsEl.querySelectorAll('.subgraph').forEach(el=>{ el.addEventListener('pointerdown',startSubgraphDrag); el.addEventListener('click',event=>{event.stopPropagation();if(suppressClickToggle){suppressClickToggle=false;return;}selectSubgraph(+el.dataset.subgraph,event.shiftKey);}); el.addEventListener('dblclick',startSubgraphRename); el.addEventListener('contextmenu',event=>openSubgraphMenu(event,+el.dataset.subgraph)); });
-  requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid(); syncCodeHighlight();
+  requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid(); storageSet(codeEditor.value); syncCodeHighlight();
 }
 
 function openNodeMenu(event){
   event.preventDefault(); event.stopPropagation(); hideMenus(); window.getSelection()?.removeAllRanges();
   const id=event.currentTarget.dataset.id;
   if(multiNodes.has(id)){selected=id;selectedEdge=null;selectedSubgraph=null;}
-  else{clearSelection();selected=id;clearSelectionClasses();nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===selected));}
+  else selectOnly('node',id);
   updateProperties();
   nodeMenu.style.left=`${event.clientX}px`; nodeMenu.style.top=`${event.clientY}px`; nodeMenu.classList.add('open');
 }
@@ -45,10 +45,7 @@ function groupIntoSubgraph(){
 }
 
 function openEdgeMenu(event,index){
-  event.preventDefault(); event.stopPropagation(); hideMenus(); clearSelection();
-  selectedEdge=index;
-  clearSelectionClasses();
-  edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.toggle('selected',+edge.dataset.edge===index));
+  event.preventDefault(); event.stopPropagation(); hideMenus(); selectOnly('edge',index);
   edgeMenu.querySelector('[data-action="add-label"]').style.display=edges[index].label?'none':'';
   edgeMenu.querySelector('[data-action="remove-label"]').style.display=edges[index].label?'':'none';
   edgeMenu.style.left=`${event.clientX}px`; edgeMenu.style.top=`${event.clientY}px`; edgeMenu.classList.add('open'); syncCodeHighlight();
@@ -57,13 +54,11 @@ function openEdgeMenu(event,index){
 function startInlineEdit(event){
   event.preventDefault(); event.stopPropagation();
   const node=nodeById(event.currentTarget.dataset.id),field=event.currentTarget.querySelector('span');
-  clearSelection(); selected=node.id; clearSelectionClasses(); inlineEdit(field,node.label,recordEdit(node,'label'));
+  selectOnly('node',node.id); inlineEdit(field,node.label,recordEdit(node,'label'));
 }
 
 function startEdgeLabelEdit(mx,my,index){
-  clearSelection(); selectedEdge=index;
-  clearSelectionClasses();
-  edgesEl.querySelectorAll('.edge').forEach(p=>p.classList.toggle('selected',+p.dataset.edge===index));
+  selectOnly('edge',index);
   const edge=edges[index],el=document.createElement('div');
   el.className='edge-label-editing'; el.textContent=edge.label; el.contentEditable='true';
   el.style.left=mx+'px'; el.style.top=my+'px';
@@ -82,6 +77,8 @@ function toggleMulti(set,key,setPrimary,first){
   render();
 }
 function clearSelectionClasses(){nodesEl.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));edgesEl.querySelectorAll('.edge').forEach(e=>e.classList.remove('selected'));subgraphsEl.querySelectorAll('.subgraph').forEach(b=>b.classList.remove('selected'));}
+const selectors={node:{els:()=>nodesEl.querySelectorAll('.node'),key:el=>el.dataset.id,set:v=>selected=v},edge:{els:()=>edgesEl.querySelectorAll('.edge'),key:el=>+el.dataset.edge,set:v=>selectedEdge=v},subgraph:{els:()=>subgraphsEl.querySelectorAll('.subgraph'),key:el=>+el.dataset.subgraph,set:v=>selectedSubgraph=v}};
+function selectOnly(kind,key){clearSelection();const s=selectors[kind];s.set(key);clearSelectionClasses();s.els().forEach(el=>el.classList.toggle('selected',s.key(el)===key));}
 function recordEdit(obj,key){return value=>{if(value!==obj[key]){record();obj[key]=value;}};}
 function inlineEdit(field,original,commit,cleanup){
   field.contentEditable='true';field.classList.add('inline-editing');field.focus();
@@ -182,10 +179,7 @@ function selectEdge(index,shift){
 }
 function selectSubgraph(index,shift){
   if(shift){seedMultiSelection();toggleMulti(multiSubgraphs,index,v=>selectedSubgraph=v,()=>[...multiSubgraphs][0]??null);return;}
-  clearSelection();selectedSubgraph=index;
-  clearSelectionClasses();
-  subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
-  updateProperties();
+  selectOnly('subgraph',index);updateProperties();
 }
 let activeDragHandlers=null;
 function cancelActiveDrag(){if(activeDragHandlers){document.removeEventListener('pointermove',activeDragHandlers.move);document.removeEventListener('pointerup',activeDragHandlers.up);activeDragHandlers=null;suppressClickToggle=false;}}
@@ -195,12 +189,7 @@ function startSubgraphDrag(e){
   const index=+e.currentTarget.dataset.subgraph;
   e.currentTarget.setPointerCapture?.(e.pointerId);
   const multi=multiSubgraphs.has(index);
-  if(!e.shiftKey&&!multi){
-    clearSelection();selectedSubgraph=index;
-    clearSelectionClasses();
-    subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
-    updateProperties();
-  }
+  if(!e.shiftKey&&!multi){selectOnly('subgraph',index);updateProperties();}
   const ids=new Set();
   [...multiSubgraphs].forEach(i=>subgraphs[i]?.members.forEach(m=>ids.add(m)));
   if(multiSubgraphs.size||multiNodes.size)[...multiNodes].forEach(id=>ids.add(id));
@@ -216,24 +205,19 @@ function startSubgraphDrag(e){
     else origins.forEach((origin,id)=>{const m=nodeById(id);if(!m)return;m.x=Math.round(origin.x+dx);m.y=Math.round(origin.y+dy);const el=document.querySelector(`[data-id="${id}"]`);if(el){el.style.left=m.x+'px';el.style.top=m.y+'px';}});
     positionSubgraphs();drawEdges();
   };
-  const up=()=>{activeDragHandlers=null;document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);setTimeout(()=>{suppressClickToggle=false;},0);};
+  const up=()=>{activeDragHandlers=null;document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);if(dragState.recorded)dropLastIfUnchanged();setTimeout(()=>{suppressClickToggle=false;},0);};
   activeDragHandlers={move,up};
   document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
 }
 function startSubgraphRename(event){
   event.preventDefault();event.stopPropagation();
   const index=+event.currentTarget.dataset.subgraph,group=subgraphs[index],field=event.currentTarget.querySelector('span');
-  clearSelection();selectedSubgraph=index;
-  clearSelectionClasses();
-  subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
+  selectOnly('subgraph',index);
   inlineEdit(field,group.label,recordEdit(group,'label'));
 }
 function openSubgraphMenu(event,index){
   event.preventDefault();event.stopPropagation();hideMenus();
-  clearSelection();selectedSubgraph=index;
-  clearSelectionClasses();
-  subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
-  updateProperties();
+  selectOnly('subgraph',index);updateProperties();
   subgraphMenu.style.left=`${event.clientX}px`;subgraphMenu.style.top=`${event.clientY}px`;subgraphMenu.classList.add('open');
 }
 function positionSubgraphs(skip=[]){
@@ -280,10 +264,7 @@ function selectNode(e){
     if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)){record();edges.push({from:source,to:id,label:''});}
     source=null; connecting=false; document.querySelector('#connectBtn').classList.remove('active'); render(); return;
   }
-  selected=id;
-  clearSelectionClasses();
-  nodesEl.querySelectorAll('.node').forEach(node=>node.classList.toggle('selected',node.dataset.id===id));
-  updateProperties();
+  selectOnly('node',id);updateProperties();
 }
 
 function startDrag(e){
@@ -321,6 +302,7 @@ function startDrag(e){
         subgraphs.forEach((g,i)=>{if(i!==target){const at=g.members.indexOf(id2);if(at>=0){g.members.splice(at,1);changed=true;}}});
       });
       if(changed)render();
+      if(dragState.recorded)dropLastIfUnchanged();
     }
     setTimeout(()=>{suppressClickToggle=false;},0);
   };
@@ -331,7 +313,7 @@ function startDrag(e){
 function updateProperties(){
   const n=nodeById(selected), label=document.querySelector('#labelInput'), shape=document.querySelector('#shapeInput'), del=document.querySelector('#deleteBtn');
   document.querySelector('#selectedId').textContent=selectedSubgraph!==null?(subgraphs[selectedSubgraph]?.label||'Subgraph'):n?.id||'—'; label.disabled=shape.disabled=!n; del.disabled=!n&&selectedSubgraph===null;
-  if(n){ label.value=n.label; shape.value=n.shape; }
+  if(n){ label.value=n.label; shape.value=n.shape; }else{ label.value=''; shape.value='round'; }
   syncCodeHighlight();
 }
 

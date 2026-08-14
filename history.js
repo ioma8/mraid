@@ -4,7 +4,9 @@ function captureState(){return{nodes:nodes.map(n=>({...n})),edges:edges.map(e=>(
 function applyState(state){nodes=state.nodes;edges=state.edges;subgraphs=state.subgraphs;direction=state.direction;}
 function updateHistoryButtons(){if(undoBtn)undoBtn.disabled=!undoStack.length;if(redoBtn)redoBtn.disabled=!redoStack.length;}
 function record(fromBurst){if(!fromBurst)endHistoryBurst();undoStack.push(captureState());if(undoStack.length>historyLimit)undoStack.shift();redoStack=[];updateHistoryButtons();}
-function recordIfChanged(apply){const before=JSON.stringify([nodes,edges,subgraphs]);record();apply();if(JSON.stringify([nodes,edges,subgraphs])===before)undoStack.pop();updateHistoryButtons();}
+function recordIfChanged(apply){const before=captureState();record();apply();if(sameState(before))undoStack.pop();updateHistoryButtons();}
+function sameState(s){return JSON.stringify([s.nodes,s.edges,s.subgraphs])===JSON.stringify([nodes,edges,subgraphs]);}
+function dropLastIfUnchanged(){if(!undoStack.length)return;if(sameState(undoStack[undoStack.length-1]))undoStack.pop();updateHistoryButtons();}
 function undo(){if(!undoStack.length)return;redoStack.push(captureState());applyState(undoStack.pop());syncAfterRestore();}
 function redo(){if(!redoStack.length)return;undoStack.push(captureState());applyState(redoStack.pop());syncAfterRestore();}
 function syncAfterRestore(){endHistoryBurst();cancelActiveDrag();clearSelection();hideMenus();render();updateHistoryButtons();}
