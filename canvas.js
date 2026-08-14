@@ -18,9 +18,10 @@ function openNodeMenu(event){
 function nextSubgraphLabel(){let n=subgraphs.length+1;while(subgraphs.some(g=>g.label===`Subgraph ${n}`))n++;return`Subgraph ${n}`;}
 const NODE_W=132,NODE_H=48;
 function makeNode(x,y){const id=nextNodeId();nodes.push({id,label:'New node',x,y,width:NODE_W,height:NODE_H,shape:'round'});return id;}
-function addNode(){const id=makeNode(100+(nodes.length%3)*220,100+(nodes.length%3)*110);clearSelection();selected=id;render();}
+function addNode(){record();const id=makeNode(100+(nodes.length%3)*220,100+(nodes.length%3)*110);clearSelection();selected=id;render();}
 function addNodeToSubgraph(index){
   const group=subgraphs[index];if(!group||!group.bounds)return;
+  record();
   const id=makeNode(Math.round(group.bounds.x+group.bounds.width/2-NODE_W/2),Math.round(group.bounds.y+group.bounds.height/2-NODE_H/2));
   group.members.push(id);
   clearSelection();selected=id;render();
@@ -30,12 +31,14 @@ function openCanvasMenu(event){
   canvasMenu.style.left=`${event.clientX}px`;canvasMenu.style.top=`${event.clientY}px`;canvasMenu.classList.add('open');
 }
 function addSubgraph(){
+  record();
   const center=currentViewCenter();
   subgraphs.push({label:nextSubgraphLabel(),members:[],bounds:{x:Math.round(center.x-160),y:Math.round(center.y-90),width:320,height:180}});
   clearSelection();selectedSubgraph=subgraphs.length-1;render();
 }
 function groupIntoSubgraph(){
   const ids=multiNodes.size?[...multiNodes]:selected!==null?[selected]:[]; if(!ids.length)return;
+  record();
   subgraphs.forEach(g=>ids.forEach(id=>{const at=g.members.indexOf(id);if(at>=0)g.members.splice(at,1);}));
   subgraphs.push({label:nextSubgraphLabel(),members:ids});
   clearSelection();selectedSubgraph=subgraphs.length-1;relayout();
@@ -54,7 +57,7 @@ function openEdgeMenu(event,index){
 function startInlineEdit(event){
   event.preventDefault(); event.stopPropagation();
   const node=nodeById(event.currentTarget.dataset.id),field=event.currentTarget.querySelector('span');
-  clearSelection(); selected=node.id; clearSelectionClasses(); inlineEdit(field,node.label,value=>node.label=value);
+  clearSelection(); selected=node.id; clearSelectionClasses(); inlineEdit(field,node.label,recordEdit(node,'label'));
 }
 
 function startEdgeLabelEdit(mx,my,index){
@@ -65,7 +68,7 @@ function startEdgeLabelEdit(mx,my,index){
   el.className='edge-label-editing'; el.textContent=edge.label; el.contentEditable='true';
   el.style.left=mx+'px'; el.style.top=my+'px';
   canvas.appendChild(el);
-  inlineEdit(el,edge.label,value=>edge.label=value,()=>el.remove());
+  inlineEdit(el,edge.label,recordEdit(edge,'label'),()=>el.remove());
 }
 
 function clearMultiSelection(){multiNodes.clear();multiEdges.clear();multiSubgraphs.clear();}
@@ -79,6 +82,7 @@ function toggleMulti(set,key,setPrimary,first){
   render();
 }
 function clearSelectionClasses(){nodesEl.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));edgesEl.querySelectorAll('.edge').forEach(e=>e.classList.remove('selected'));subgraphsEl.querySelectorAll('.subgraph').forEach(b=>b.classList.remove('selected'));}
+function recordEdit(obj,key){return value=>{if(value!==obj[key]){record();obj[key]=value;}};}
 function inlineEdit(field,original,commit,cleanup){
   field.contentEditable='true';field.classList.add('inline-editing');field.focus();
   const selection=window.getSelection();selection?.selectAllChildren(field);
@@ -183,6 +187,9 @@ function selectSubgraph(index,shift){
   subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
   updateProperties();
 }
+let activeDragHandlers=null;
+function cancelActiveDrag(){if(activeDragHandlers){document.removeEventListener('pointermove',activeDragHandlers.move);document.removeEventListener('pointerup',activeDragHandlers.up);activeDragHandlers=null;suppressClickToggle=false;}}
+function markDragMove(ev,startX,startY,state){if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3){suppressClickToggle=true;if(!state.recorded){state.recorded=true;record();}}}
 function startSubgraphDrag(e){
   if(e.button!==0||spaceDown)return;
   const index=+e.currentTarget.dataset.subgraph;
@@ -200,16 +207,17 @@ function startSubgraphDrag(e){
   if(!ids.size)subgraphs[index].members.forEach(m=>ids.add(m));
   const origins=new Map([...ids].map(id=>{const m=nodeById(id);return m?[id,{x:m.x,y:m.y}]:null}).filter(Boolean));
   const boundsOrigins=!origins.size?new Map([...multiSubgraphs,index].map(i=>{const g=subgraphs[i];return g&&g.bounds?[i,{x:g.bounds.x,y:g.bounds.y}]:null}).filter(Boolean)):null;
-  const startX=e.clientX,startY=e.clientY;
+  const startX=e.clientX,startY=e.clientY,dragState={recorded:false};
   const move=ev=>{
-    if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3)suppressClickToggle=true;
+    markDragMove(ev,startX,startY,dragState);
     let dx=Math.round((ev.clientX-startX)/zoom),dy=Math.round((ev.clientY-startY)/zoom);
     if(ev.shiftKey){dx=Math.round(dx/20)*20;dy=Math.round(dy/20)*20;}
     if(boundsOrigins){boundsOrigins.forEach((o,i)=>{const g=subgraphs[i];g.bounds.x=o.x+dx;g.bounds.y=o.y+dy;});}
     else origins.forEach((origin,id)=>{const m=nodeById(id);if(!m)return;m.x=Math.round(origin.x+dx);m.y=Math.round(origin.y+dy);const el=document.querySelector(`[data-id="${id}"]`);if(el){el.style.left=m.x+'px';el.style.top=m.y+'px';}});
     positionSubgraphs();drawEdges();
   };
-  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);setTimeout(()=>{suppressClickToggle=false;},0);};
+  const up=()=>{activeDragHandlers=null;document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);setTimeout(()=>{suppressClickToggle=false;},0);};
+  activeDragHandlers={move,up};
   document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
 }
 function startSubgraphRename(event){
@@ -218,7 +226,7 @@ function startSubgraphRename(event){
   clearSelection();selectedSubgraph=index;
   clearSelectionClasses();
   subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.toggle('selected',+box.dataset.subgraph===index));
-  inlineEdit(field,group.label,value=>group.label=value);
+  inlineEdit(field,group.label,recordEdit(group,'label'));
 }
 function openSubgraphMenu(event,index){
   event.preventDefault();event.stopPropagation();hideMenus();
@@ -269,7 +277,7 @@ function selectNode(e){
   clearSelection();
   if(connecting){
     if(!source){ source=id; selected=id; render(); return; }
-    if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)) edges.push({from:source,to:id,label:''});
+    if(source!==id&&!edges.some(x=>x.from===source&&x.to===id)){record();edges.push({from:source,to:id,label:''});}
     source=null; connecting=false; document.querySelector('#connectBtn').classList.remove('active'); render(); return;
   }
   selected=id;
@@ -281,14 +289,14 @@ function selectNode(e){
 function startDrag(e){
   if(e.button!==0||spaceDown||e.currentTarget.querySelector('[contenteditable="true"]'))return;
   e.currentTarget.setPointerCapture?.(e.pointerId);
-  const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y;
+  const el=e.currentTarget,id=el.dataset.id,n=nodeById(id),startX=e.clientX,startY=e.clientY,ox=n.x,oy=n.y,dragState={recorded:false};
   const group=multiNodes.has(id)?new Map([...multiNodes].map(id2=>{const m=nodeById(id2);return m?[id2,{x:m.x,y:m.y}]:null}).filter(Boolean)):null;
   const dragging=new Set(group?[...multiNodes]:[id]),frozen=[];subgraphs.forEach((g,i)=>{if(g.members.some(m=>dragging.has(m)))frozen.push(i);});
   if(!group&&!e.shiftKey){clearSelection();selected=id;clearSelectionClasses();nodesEl.querySelectorAll('.node').forEach(x=>x.classList.toggle('selected',x===el));}
   else if(group){selected=id;selectedEdge=null;selectedSubgraph=null;edgesEl.querySelectorAll('.edge').forEach(edge=>edge.classList.remove('selected'));subgraphsEl.querySelectorAll('.subgraph').forEach(box=>box.classList.remove('selected'));}
   updateProperties();
   const move=ev=>{
-    if(Math.abs(ev.clientX-startX)>3||Math.abs(ev.clientY-startY)>3)suppressClickToggle=true;
+    markDragMove(ev,startX,startY,dragState);
     let x=Math.round(ox+(ev.clientX-startX)/zoom);
     let y=Math.round(oy+(ev.clientY-startY)/zoom);
     if(ev.shiftKey){ x=Math.round(x/20)*20; y=Math.round(y/20)*20; }
@@ -301,6 +309,7 @@ function startDrag(e){
     drawEdges();positionSubgraphs(frozen);
   };
   const up=()=>{
+    activeDragHandlers=null;
     document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
     if(suppressClickToggle){
       let changed=false;
@@ -315,6 +324,7 @@ function startDrag(e){
     }
     setTimeout(()=>{suppressClickToggle=false;},0);
   };
+  activeDragHandlers={move,up};
   document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
 }
 

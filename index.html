@@ -32,7 +32,7 @@
     </aside>
 
     <section class="workspace">
-      <div class="canvas-toolbar"><div class="breadcrumbs"><span>Untitled diagram</span><span class="slash">/</span><span class="muted">Flowchart</span></div><div class="toolbar-actions"><button class="relayout" id="relayoutBtn" title="Re-run automatic layout">Relayout</button><div class="zoom"><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div></div></div>
+      <div class="canvas-toolbar"><div class="breadcrumbs"><span>Untitled diagram</span><span class="slash">/</span><span class="muted">Flowchart</span></div><div class="toolbar-actions"><button class="relayout" id="undoBtn" title="Undo (⌘Z)" disabled>Undo</button><button class="relayout" id="redoBtn" title="Redo (⌘⇧Z)" disabled>Redo</button><button class="relayout" id="relayoutBtn" title="Re-run automatic layout">Relayout</button><div class="zoom"><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div></div></div>
       <div class="canvas-wrap" id="canvasWrap">
         <div class="canvas" id="canvas"><svg id="edges" aria-hidden="true"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#9aa0ad" /></marker></defs></svg><div id="subgraphs"></div><div id="nodes"></div><div class="empty-state" id="emptyState"><span>✦</span><strong>Your canvas is ready</strong><small>Add a node to start sketching</small></div></div>
         <div class="canvas-help"><span>Drag to move</span><span>•</span><span>Click edge + Delete to remove</span><span>•</span><span>C to connect</span></div>
@@ -47,6 +47,7 @@
   <div class="node-menu" id="subgraphMenu"><button data-action="add-node">Add node to subgraph</button><button data-action="delete">Remove subgraph <kbd>⌫</kbd></button></div>
   <script src="vendor/dagre.min.js"></script>
   <script src="state.js"></script>
+  <script src="history.js"></script>
   <script src="mermaid.js"></script>
   <script src="canvas.js"></script>
   <script src="ui.js"></script>

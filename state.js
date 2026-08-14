@@ -12,6 +12,8 @@ const subgraphMenu = document.querySelector('#subgraphMenu');
 const canvasMenu = document.querySelector('#canvasMenu');
 const splitter = document.querySelector('#splitter');
 const codePanel = document.querySelector('.code-panel');
+const undoBtn = document.querySelector('#undoBtn');
+const redoBtn = document.querySelector('#redoBtn');
 
 let nodes = [
   { id:'A', label:'Start here', shape:'round' },
