@@ -103,10 +103,10 @@ function selectionTargets(){
   if(selected!==null)return[{kind:'node',id:selected}];
   return[];
 }
-function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
+function applyViewport(){ canvas.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; canvasWrap.style.backgroundPosition=`${panX+gridPanX}px ${panY+gridPanY}px`; canvasWrap.style.backgroundSize=`${20*zoom}px ${20*zoom}px`; document.querySelector('#zoomLabel').textContent=Math.round(zoom*100)+'%'; }
 function currentViewCenter(){ return {x:(canvasWrap.clientWidth-2*panX)/(2*zoom),y:(canvasWrap.clientHeight-2*panY)/(2*zoom)}; }
 function setZoom(value){ zoom=Math.min(2,Math.max(.5,value)); applyViewport(); }
-function relayout(){const laidOut=layoutDiagram({direction,nodes,edges,subgraphs},currentViewCenter());nodes=laidOut.nodes;edges=laidOut.edges;subgraphs=laidOut.subgraphs;render();}
+function relayout(){const ref=nodes[0],before=ref&&Number.isFinite(ref.x)&&Number.isFinite(ref.y)?{id:ref.id,x:ref.x,y:ref.y}:null;const laidOut=layoutDiagram({direction,nodes,edges,subgraphs},currentViewCenter());const after=before&&laidOut.nodes.find(n=>n.id===before.id);if(after){gridPanX+=(after.x-before.x)*zoom;gridPanY+=(after.y-before.y)*zoom;}nodes=laidOut.nodes;edges=laidOut.edges;subgraphs=laidOut.subgraphs;render();applyViewport();}
 function startMarquee(event){
   const rect=canvasWrap.getBoundingClientRect(),sx=Math.round((event.clientX-rect.left-panX)/zoom),sy=Math.round((event.clientY-rect.top-panY)/zoom);
   const el=document.createElement('div'); el.className='marquee'; el.style.left=sx+'px'; el.style.top=sy+'px'; canvas.appendChild(el);
