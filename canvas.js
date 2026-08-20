@@ -4,7 +4,7 @@ function render(syncCode=true){
   emptyState.style.display = nodes.length ? 'none' : 'flex';
   nodesEl.querySelectorAll('.node').forEach(el=>{ el.addEventListener('pointerdown',startDrag); el.addEventListener('click',selectNode); el.addEventListener('dblclick',startInlineEdit); el.addEventListener('contextmenu',openNodeMenu); });
   subgraphsEl.querySelectorAll('.subgraph').forEach(el=>{ el.addEventListener('pointerdown',startSubgraphDrag); el.addEventListener('click',event=>{event.stopPropagation();if(suppressClickToggle){suppressClickToggle=false;return;}selectSubgraph(+el.dataset.subgraph,event.shiftKey);}); el.addEventListener('dblclick',startSubgraphRename); el.addEventListener('contextmenu',event=>openSubgraphMenu(event,+el.dataset.subgraph)); });
-  requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode) codeEditor.value = toMermaid(); storageSet(codeEditor.value); syncCodeHighlight();
+  requestAnimationFrame(()=>{ positionSubgraphs(); drawEdges(); }); updateProperties(); if(syncCode){codeEditor.value = toMermaid();codeEditor.classList.remove('invalid');codeEditor.title='';} saveDocument(); syncCodeHighlight();
 }
 
 function openNodeMenu(event){
@@ -205,7 +205,7 @@ function startSubgraphDrag(e){
     else origins.forEach((origin,id)=>{const m=nodeById(id);if(!m)return;m.x=Math.round(origin.x+dx);m.y=Math.round(origin.y+dy);const el=document.querySelector(`[data-id="${id}"]`);if(el){el.style.left=m.x+'px';el.style.top=m.y+'px';}});
     positionSubgraphs();drawEdges();
   };
-  const up=()=>{activeDragHandlers=null;document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);if(dragState.recorded)dropLastIfUnchanged();setTimeout(()=>{suppressClickToggle=false;},0);};
+  const up=()=>{activeDragHandlers=null;document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);if(dragState.recorded){saveDocument();dropLastIfUnchanged();}setTimeout(()=>{suppressClickToggle=false;},0);};
   activeDragHandlers={move,up};
   document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
 }
@@ -250,7 +250,7 @@ function drawEdges(){
     hit.addEventListener('contextmenu',event=>openEdgeMenu(event,index));
     hit.setAttribute('d',d); edgesEl.appendChild(hit);
     const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('class',`edge ${selectedEdge===index||multiEdges.has(index)?'selected':''}`); path.dataset.edge=index; path.setAttribute('d',d); edgesEl.appendChild(path);
-    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',mx); text.setAttribute('y',my-6); text.textContent=edge.label; text.dataset.mx=mx; text.dataset.my=my-6; text.addEventListener('click',event=>{event.stopPropagation();selectEdge(index,event.shiftKey);}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(+text.dataset.mx,+text.dataset.my,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
+    if(edge.label){ const text=document.createElementNS('http://www.w3.org/2000/svg','text'); text.setAttribute('class','edge-label'); text.setAttribute('x',mx); text.setAttribute('y',my-6); text.textContent=edge.label; text.addEventListener('click',event=>{event.stopPropagation();selectEdge(index,event.shiftKey);}); text.addEventListener('dblclick',event=>{event.preventDefault();event.stopPropagation();startEdgeLabelEdit(mx,my-6,index);}); text.addEventListener('contextmenu',event=>openEdgeMenu(event,index)); edgesEl.appendChild(text); }
   });
 }
 
@@ -301,7 +301,7 @@ function startDrag(e){
         if(target>=0&&!subgraphs[target].members.includes(id2)){subgraphs[target].members.push(id2);changed=true;}
         subgraphs.forEach((g,i)=>{if(i!==target){const at=g.members.indexOf(id2);if(at>=0){g.members.splice(at,1);changed=true;}}});
       });
-      if(changed)render();
+      if(changed)render();else{positionSubgraphs();saveDocument();} // no full render on drag end: rewriting the code editor can re-trigger applyMermaid in WKWebView
       if(dragState.recorded)dropLastIfUnchanged();
     }
     setTimeout(()=>{suppressClickToggle=false;},0);

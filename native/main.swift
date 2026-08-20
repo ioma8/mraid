@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         configuration.userContentController.add(self, name: "native")
         let css = "<style>\(embeddedCSS)</style>"
         configuration.userContentController.addUserScript(WKUserScript(
-            source: "document.head.insertAdjacentHTML('beforeend', \(jsonString(css)));",
+            source: "document.head.insertAdjacentHTML('beforeend', \(String(data: try! JSONSerialization.data(withJSONObject: css, options: .fragmentsAllowed), encoding: .utf8)!));",
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         ))
@@ -68,11 +68,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             try? text.write(to: url, atomically: true, encoding: .utf8)
         }
     }
-}
-
-private func jsonString(_ value: String) -> String {
-    let data = try! JSONSerialization.data(withJSONObject: [value])
-    return String(data: data, encoding: .utf8)!.dropFirst().dropLast().description
 }
 
 let app = NSApplication.shared

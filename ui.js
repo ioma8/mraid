@@ -1,7 +1,4 @@
-function nativeMessage(message){
-  if(window.webkit?.messageHandlers?.native) window.webkit.messageHandlers.native.postMessage(message);
-}
-
+function nativeMessage(message){window.webkit?.messageHandlers?.native?.postMessage(message);}
 document.querySelector('#addNodeBtn').onclick=addNode;
 function nextNodeId(){let i=0;while(nodes.some(n=>n.id===String.fromCharCode(65+i)))i++;if(i<26)return String.fromCharCode(65+i);let suffix=1;while(nodes.some(n=>n.id===`N${suffix}`))suffix++;return `N${suffix}`;}
 function hideNodeMenu(){nodeMenu.classList.remove('open');}
@@ -10,9 +7,10 @@ function hideSubgraphMenu(){subgraphMenu.classList.remove('open');}
 function hideMenus(){hideNodeMenu();hideEdgeMenu();hideSubgraphMenu();canvasMenu.classList.remove('open');}
 function duplicateSelected(){const original=nodeById(selected);if(!original)return;record();const id=nextNodeId(),copy={...original,id,label:`${original.label} copy`};nodes.push(copy);edges.push(...edges.filter(edge=>edge.to===original.id).map(edge=>({...edge,to:id})));subgraphs.forEach(group=>{if(group.members.includes(original.id))group.members.push(id);});clearSelection();selected=id;hideNodeMenu();relayout();}
 function deleteSelected(){hideNodeMenu();hideSubgraphMenu();if(!multiNodes.size&&!multiEdges.size&&!multiSubgraphs.size&&selected===null&&selectedEdge===null&&selectedSubgraph===null)return;record();if(multiNodes.size||multiEdges.size||multiSubgraphs.size){const ids=new Set(multiNodes);edges=edges.filter((e,i)=>!multiEdges.has(i)&&!ids.has(e.from)&&!ids.has(e.to));nodes=nodes.filter(n=>!ids.has(n.id));subgraphs=subgraphs.filter((g,i)=>!multiSubgraphs.has(i)).map(g=>({...g,members:g.members.filter(id=>!ids.has(id))}));clearSelection();render();return;}if(selectedEdge!==null){edges.splice(selectedEdge,1);selectedEdge=null;render();return;}if(selectedSubgraph!==null){subgraphs.splice(selectedSubgraph,1);selectedSubgraph=null;render();return;}if(selected){nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(x=>x.from!==selected&&x.to!==selected);subgraphs=subgraphs.map(g=>({...g,members:g.members.filter(id=>id!==selected)}));selected=null;render();}}
-nodeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{const action=button.dataset.action;hideMenus();action==='group'?groupIntoSubgraph():action==='duplicate'?duplicateSelected():deleteSelected();});
-subgraphMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{const action=button.dataset.action;hideMenus();action==='add-node'?addNodeToSubgraph(selectedSubgraph):deleteSelected();});
-canvasMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{const action=button.dataset.action;hideMenus();action==='add-subgraph'?addSubgraph():addNode();});
+function wireMenu(menu,actions){menu.querySelectorAll('button').forEach(button=>button.onclick=()=>{hideMenus();actions[button.dataset.action]();});}
+wireMenu(nodeMenu,{group:groupIntoSubgraph,duplicate:duplicateSelected,delete:deleteSelected});
+wireMenu(subgraphMenu,{'add-node':()=>addNodeToSubgraph(selectedSubgraph),delete:deleteSelected});
+wireMenu(canvasMenu,{'add-subgraph':addSubgraph,'add-node':addNode});
 edgeMenu.querySelectorAll('button').forEach(button=>button.onclick=()=>{
   if(selectedEdge===null)return;
   const action=button.dataset.action;
@@ -46,4 +44,4 @@ document.addEventListener('keydown',e=>{const mod=e.metaKey||e.ctrlKey;if(e.targ
 document.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false;});
 
 // boot: restore the autosaved diagram, or render the starter
-const saved=storageGet();if(saved!==null){codeEditor.value=saved;applyMermaid(saved);}else relayout();
+const saved=storageGet();if(saved!==null){if(restoreDocument(saved))render();else if(!applyMermaid(saved))relayout();}else relayout();
