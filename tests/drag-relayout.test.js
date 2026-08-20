@@ -56,4 +56,17 @@ docHandlers.pointermove({ clientX: 140, clientY: 120, shiftKey: false });
 docHandlers.pointerup({ clientX: 140, clientY: 120, shiftKey: false });
 assert.equal(J('globalThis.relayoutCalls'), 0, 'a plain move within a subgraph must not relayout');
 assert(J('subgraphs[0].members.includes("A")'), 'the node must remain a member');
-console.log('drag: dropping a node into a subgraph adds it and re-lays out; plain moves inside a subgraph do not');
+
+// dragging the last member out empties the subgraph without breaking the layout
+J('nodes=[{id:"A",label:"A",x:100,y:100,width:132,height:48},{id:"B",label:"B",x:300,y:100,width:132,height:48}];edges=[];subgraphs=[{label:"G",members:["B"],bounds:{x:250,y:50,width:300,height:200}}];direction="LR";undoStack=[];redoStack=[];globalThis.relayoutCalls=0;');
+const bEl = makeEl(); bEl.dataset.id = 'B';
+ctx.startDrag({ button: 0, currentTarget: bEl, pointerId: 3, clientX: 300, clientY: 100, shiftKey: false });
+docHandlers.pointermove({ clientX: 600, clientY: 300, shiftKey: false });  // B lands outside G
+ docHandlers.pointerup({ clientX: 600, clientY: 300, shiftKey: false });
+assert.equal(J('subgraphs[0].members.length'), 0, 'dropping the last member out must empty the subgraph');
+assert.equal(J('globalThis.relayoutCalls'), 1, 'the structural drop must relayout');
+assert(J('nodes.every(n=>Number.isFinite(n.x)&&Number.isFinite(n.y))'), 'nodes must keep finite positions after the drop');
+assert(Number.isFinite(J('subgraphs[0].bounds.x'))&&Number.isFinite(J('subgraphs[0].bounds.width')), 'the emptied subgraph must keep finite bounds');
+ctx.undo();
+assert.equal(J('subgraphs[0].members.length'), 1, 'undo must restore the membership');
+console.log('drag: dropping a node into a subgraph adds it and re-lays out; plain moves inside a subgraph do not; emptying a subgraph stays finite');

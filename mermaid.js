@@ -15,11 +15,11 @@ function layoutDiagram(diagram,center){center=center||{x:650,y:450};
   const rankdir=diagram.direction==='TD'||diagram.direction==='TB'?'TB':diagram.direction,graph=new dagre.graphlib.Graph({compound:true}).setGraph({rankdir,nodesep:60,ranksep:80,marginx:40,marginy:40}).setDefaultEdgeLabel(()=>({}));
   const size=node=>{node.width=node.width||Math.min(300,Math.max(132,node.label.length*7+36));node.height=node.height||(node.shape==='diamond'||node.shape==='circle'?node.width:Math.max(48,Math.ceil((node.label.length*7+36)/300)*18+24));return node;};
   diagram.nodes.forEach(node=>graph.setNode(node.id,size(node)));
-  diagram.subgraphs.forEach((group,index)=>{const id=`\u00A7subgraph_${index}`;group.id=id;graph.setNode(id,{label:group.label});group.members.forEach(member=>graph.setParent(member,id));});
+  diagram.subgraphs.forEach((group,index)=>{if(!group.members.length){if(!group.bounds)group.bounds={x:center.x-160,y:center.y-90,width:320,height:180};return;}const id=`\u00A7subgraph_${index}`;group.id=id;graph.setNode(id,{label:group.label});group.members.forEach(member=>graph.setParent(member,id));});
   diagram.edges.forEach(edge=>graph.setEdge(edge.from,edge.to,{label:edge.label,width:edge.label?edge.label.length*7+12:0,height:edge.label?18:0}));
   dagre.layout(graph);
   diagram.nodes.forEach(node=>{const placed=graph.node(node.id);node.x=placed.x-node.width/2;node.y=placed.y-node.height/2;});
-  diagram.subgraphs.forEach(group=>{const placed=graph.node(group.id);group.bounds={x:placed.x-placed.width/2,y:placed.y-placed.height/2,width:placed.width,height:placed.height};});
+  diagram.subgraphs.forEach(group=>{if(!group.members.length)return;const placed=graph.node(group.id);group.bounds={x:placed.x-placed.width/2,y:placed.y-placed.height/2,width:placed.width,height:placed.height};});
   if(diagram.nodes.length||diagram.subgraphs.length){
     const minX=Math.min(...diagram.nodes.map(n=>n.x),...diagram.subgraphs.map(g=>g.bounds.x)),maxX=Math.max(...diagram.nodes.map(n=>n.x+n.width),...diagram.subgraphs.map(g=>g.bounds.x+g.bounds.width)),minY=Math.min(...diagram.nodes.map(n=>n.y),...diagram.subgraphs.map(g=>g.bounds.y)),maxY=Math.max(...diagram.nodes.map(n=>n.y+n.height),...diagram.subgraphs.map(g=>g.bounds.y+g.bounds.height));
     const dx=center.x-(minX+maxX)/2,dy=center.y-(minY+maxY)/2;
