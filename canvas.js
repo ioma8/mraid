@@ -301,7 +301,7 @@ function startDrag(e){
         if(target>=0&&!subgraphs[target].members.includes(id2)){subgraphs[target].members.push(id2);changed=true;}
         subgraphs.forEach((g,i)=>{if(i!==target){const at=g.members.indexOf(id2);if(at>=0){g.members.splice(at,1);changed=true;}}});
       });
-      if(changed)render();else{positionSubgraphs();saveDocument();} // no full render on drag end: rewriting the code editor can re-trigger applyMermaid in WKWebView
+      if(changed)relayout();else{positionSubgraphs();saveDocument();} // a structural drop re-lays out; plain moves persist without a render (an editor rewrite could re-trigger applyMermaid in WKWebView)
       if(dragState.recorded)dropLastIfUnchanged();
     }
     setTimeout(()=>{suppressClickToggle=false;},0);
