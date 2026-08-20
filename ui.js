@@ -44,4 +44,4 @@ document.addEventListener('keydown',e=>{const mod=e.metaKey||e.ctrlKey;if(e.targ
 document.addEventListener('keyup',e=>{if(e.code==='Space')spaceDown=false;});
 
 // boot: restore the autosaved diagram, or render the starter
-const saved=storageGet();if(saved!==null){if(restoreDocument(saved))render();else if(!applyMermaid(saved))relayout();}else relayout();
+const saved=storageGet();if(saved!==null){codeEditor.value=saved;if(restoreDocument(saved))render();else if(!applyMermaid(saved))relayout();}else relayout();
